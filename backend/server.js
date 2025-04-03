@@ -10,8 +10,8 @@ const skillRoutes = require('./routes/skillRoutes');
 const profileComparisonRoutes = require('./routes/profileComparisonRoutes');
 const fs = require('fs');
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from the correct path
+dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 // Create Express app
 const app = express();
@@ -43,14 +43,6 @@ app.use('/api/users', userRoutes);
 app.use('/api/certifications', certificationRoutes);
 app.use('/api/skills', skillRoutes);
 app.use('/api/profiles', profileComparisonRoutes);
-
-// Serve static assets in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../frontend/build')));
-  app.get('*', (req, res) => {
-    res.sendFile(path.resolve(__dirname, '../frontend/build/index.html'));
-  });
-}
 
 // Error handling middleware
 app.use((err, req, res, next) => {

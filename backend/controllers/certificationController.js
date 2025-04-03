@@ -3,18 +3,23 @@ const asyncHandler = require('express-async-handler');
 const multer = require('multer');
 const path = require('path');
 const User = require('../models/userModel');
-const mongoose = require('mongoose');
-const Grid = require('gridfs-stream');
+const fs = require('fs');
 
-// Initialize GridFS
-let gfs;
-mongoose.connection.once('open', () => {
-  gfs = Grid(mongoose.connection.db, mongoose.mongo);
-  gfs.collection('uploads');
+// Configure multer for file upload
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, '../uploads');
+    // Create the uploads directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
 });
-
-// Configure multer for GridFS storage
-const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
@@ -62,11 +67,11 @@ const getCertification = asyncHandler(async (req, res) => {
   res.json(certification);
 });
 
-// @desc    Create certification
+// @desc    Add a new certification
 // @route   POST /api/certifications
 // @access  Private
-const createCertification = asyncHandler(async (req, res) => {
-  const { title, issuer, issueDate, expiryDate, credentialId, credentialUrl, description } = req.body;
+const addCertification = asyncHandler(async (req, res) => {
+  const { title, issuer, issueDate, expiryDate, credentialId, description } = req.body;
 
   if (!title || !issuer || !issueDate) {
     res.status(400);
@@ -81,7 +86,6 @@ const createCertification = asyncHandler(async (req, res) => {
     issueDate,
     expiryDate,
     credentialId,
-    credentialUrl,
     description,
     certificateFile: req.file ? req.file.filename : null
   });
@@ -139,101 +143,32 @@ const deleteCertification = asyncHandler(async (req, res) => {
     throw new Error('Not authorized');
   }
 
+  // Delete the certification file if it exists
+  if (certification.certificateFile) {
+    const filePath = path.join(__dirname, '../uploads', certification.certificateFile);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  }
+
+  // Remove the certification from the user's certifications array
+  const user = await User.findById(req.user._id);
+  if (user) {
+    user.certifications = user.certifications.filter(
+      cert => cert.toString() !== certification._id.toString()
+    );
+    await user.save();
+  }
+
   await certification.remove();
   res.json({ message: 'Certification removed' });
 });
 
-// @desc    Add a new certification
-// @route   POST /api/certifications
-// @access  Private
-const addCertification = async (req, res) => {
-  try {
-    const { title, issuer, issueDate, expiryDate, credentialId, description } = req.body;
-    
-    if (!title || !issuer || !issueDate) {
-      return res.status(400).json({ message: 'Please provide title, issuer, and issue date' });
-    }
-
-    let fileId = null;
-    if (req.file) {
-      // Create a write stream to GridFS
-      const writeStream = gfs.createWriteStream({
-        filename: req.file.originalname,
-        contentType: req.file.mimetype
-      });
-
-      // Write the file buffer to GridFS
-      writeStream.write(req.file.buffer);
-      writeStream.end();
-
-      // Get the file ID after writing
-      fileId = await new Promise((resolve, reject) => {
-        writeStream.on('finish', () => {
-          resolve(writeStream.id);
-        });
-        writeStream.on('error', reject);
-      });
-    }
-
-    // Create certification
-    const certification = await Certification.create({
-      user: req.user._id,
-      title,
-      issuer,
-      issueDate,
-      expiryDate,
-      credentialId,
-      description,
-      certificateFile: fileId
-    });
-
-    // Add certification to user's certifications array
-    await User.findByIdAndUpdate(
-      req.user._id,
-      { $push: { certifications: certification._id } },
-      { new: true }
-    );
-
-    res.status(201).json(certification);
-  } catch (error) {
-    console.error('Error in addCertification:', error);
-    res.status(400).json({ 
-      message: 'Error adding certification',
-      error: error.message 
-    });
-  }
-};
-
-// @desc    Get certification file
-// @route   GET /api/certifications/file/:id
-// @access  Private
-const getCertificationFile = async (req, res) => {
-  try {
-    const file = await gfs.files.findOne({ _id: new mongoose.Types.ObjectId(req.params.id) });
-    
-    if (!file) {
-      return res.status(404).json({ message: 'File not found' });
-    }
-
-    // Set the appropriate content type
-    res.set('Content-Type', file.contentType);
-    
-    // Create read stream and pipe to response
-    const readStream = gfs.createReadStream({ _id: file._id });
-    readStream.pipe(res);
-  } catch (error) {
-    console.error('Error getting file:', error);
-    res.status(500).json({ message: 'Error retrieving file' });
-  }
-};
-
 module.exports = {
   getCertifications,
   getCertification,
-  createCertification,
+  addCertification,
   updateCertification,
   deleteCertification,
-  upload,
-  addCertification,
-  getCertificationFile
+  upload
 }; 

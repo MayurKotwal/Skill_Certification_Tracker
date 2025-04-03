@@ -150,6 +150,52 @@ const uploadProfileImage = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Search users
+// @route   GET /api/users/search
+// @access  Private
+const searchUsers = asyncHandler(async (req, res) => {
+  const { q } = req.query;
+  
+  if (!q) {
+    res.status(400);
+    throw new Error('Search query is required');
+  }
+  
+  const users = await User.find({
+    $or: [
+      { name: { $regex: q, $options: 'i' } },
+      { email: { $regex: q, $options: 'i' } }
+    ],
+    publicProfile: true
+  })
+  .select('name email bio profileImage')
+  .limit(10);
+  
+  res.json(users);
+});
+
+// @desc    Get user by ID
+// @route   GET /api/users/:id
+// @access  Private
+const getUserById = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id)
+    .select('name email bio profileImage publicProfile')
+    .populate('skills', 'name category level')
+    .populate('certifications', 'title issuer issueDate expiryDate');
+  
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+  
+  if (!user.publicProfile && user._id.toString() !== req.user._id.toString()) {
+    res.status(403);
+    throw new Error('This profile is private');
+  }
+  
+  res.json(user);
+});
+
 module.exports = {
   registerUser,
   loginUser,
@@ -157,4 +203,6 @@ module.exports = {
   updateProfile,
   getPublicProfile,
   uploadProfileImage,
+  searchUsers,
+  getUserById
 }; 

@@ -18,6 +18,7 @@ import PublicProfile from './pages/PublicProfile';
 import AddCertification from './pages/AddCertification';
 import AddSkill from './pages/AddSkill';
 import SearchProfiles from './pages/SearchProfiles';
+import ProfileComparison from './pages/ProfileComparison';
 
 // Create theme
 const theme = createTheme({
@@ -54,6 +55,7 @@ function App() {
             <Route path="/add-certification" element={<AddCertification />} />
             <Route path="/add-skill" element={<AddSkill />} />
             <Route path="/search-profiles" element={<SearchProfiles />} />
+            <Route path="/compare-profiles/:profileIds" element={<ProfileComparison />} />
           </Routes>
         </Container>
         <Footer />

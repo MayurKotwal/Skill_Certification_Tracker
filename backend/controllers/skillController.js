@@ -1,5 +1,6 @@
 const Skill = require('../models/skillModel');
 const asyncHandler = require('express-async-handler');
+const User = require('../models/userModel');
 
 // @desc    Get all skills
 // @route   GET /api/skills
@@ -60,6 +61,15 @@ const createSkill = asyncHandler(async (req, res) => {
     });
   }
 
+  // Update the user's skills array
+  const user = await User.findById(req.user._id);
+  if (user) {
+    if (!user.skills.includes(skill._id)) {
+      user.skills.push(skill._id);
+      await user.save();
+    }
+  }
+
   res.status(201).json(skill);
 });
 
@@ -106,11 +116,22 @@ const deleteSkill = asyncHandler(async (req, res) => {
     throw new Error('Not authorized');
   }
 
+  // Remove the skill from the user's skills array
+  const user = await User.findById(req.user._id);
+  if (user) {
+    user.skills = user.skills.filter(
+      skillId => skillId.toString() !== skill._id.toString()
+    );
+    await user.save();
+  }
+
   // Remove user from skill's users array
-  skill.users = skill.users.filter(userId => userId.toString() !== req.user._id.toString());
+  skill.users = skill.users.filter(
+    userId => userId.toString() !== req.user._id.toString()
+  );
   
+  // If no users left, delete the skill
   if (skill.users.length === 0) {
-    // If no users left, delete the skill
     await skill.remove();
   } else {
     await skill.save();

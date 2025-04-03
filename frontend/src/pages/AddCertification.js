@@ -84,24 +84,40 @@ const AddCertification = () => {
       setLoading(true);
       setError('');
 
-      const formData = new FormData();
+      const formDataToSend = new FormData();
+      
+      // Add form fields
       Object.keys(formData).forEach((key) => {
         if (formData[key]) {
-          formData.append(key, formData[key]);
+          formDataToSend.append(key, formData[key]);
         }
       });
+      
+      // Add file if exists
       if (file) {
-        formData.append('certificateFile', file);
+        formDataToSend.append('certificateFile', file);
       }
 
-      const response = await axios.post('http://localhost:3001/api/certifications', formData, {
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('You must be logged in to add a certification');
+        setLoading(false);
+        return;
+      }
+
+      const response = await axios.post('http://localhost:3001/api/certifications', formDataToSend, {
         headers: {
           'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`
         },
       });
 
       if (response.data) {
-        navigate('/profile');
+        setSuccess('Certification added successfully!');
+        setTimeout(() => {
+          navigate('/profile');
+        }, 1500);
       }
     } catch (err) {
       console.error('Upload error:', err);
@@ -206,18 +222,23 @@ const AddCertification = () => {
                 {...getRootProps()}
                 sx={{
                   border: '2px dashed #ccc',
-                  borderRadius: 1,
+                  borderRadius: 2,
                   p: 3,
                   textAlign: 'center',
                   cursor: 'pointer',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                  },
                 }}
               >
                 <input {...getInputProps()} />
                 {file ? (
-                  <Typography>{file.name}</Typography>
+                  <Typography>
+                    Selected file: {file.name}
+                  </Typography>
                 ) : (
                   <Typography>
-                    Drag and drop your certificate here, or click to select
+                    Drag and drop a file here, or click to select a file
                   </Typography>
                 )}
               </Box>
@@ -226,11 +247,11 @@ const AddCertification = () => {
               <Button
                 type="submit"
                 variant="contained"
+                color="primary"
                 fullWidth
-                size="large"
                 disabled={loading}
               >
-                {loading ? 'Adding...' : 'Add Certification'}
+                {loading ? 'Uploading...' : 'Add Certification'}
               </Button>
             </Grid>
           </Grid>

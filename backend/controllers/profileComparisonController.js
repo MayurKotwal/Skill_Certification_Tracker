@@ -20,44 +20,69 @@ const searchProfiles = asyncHandler(async (req, res) => {
   res.json(profiles);
 });
 
-// @desc    Compare two profiles
-// @route   POST /api/profiles/compare
+// @desc    Compare two user profiles
+// @route   GET /api/profiles/compare/:userId1/:userId2
 // @access  Private
 const compareProfiles = asyncHandler(async (req, res) => {
-  const { userId1, userId2 } = req.body;
-
-  // Check if comparison already exists
-  let comparison = await ProfileComparison.findOne({
-    $or: [
-      { user1: userId1, user2: userId2 },
-      { user1: userId2, user2: userId1 }
-    ]
-  });
-
-  if (comparison) {
-    return res.json(comparison);
-  }
-
-  // Get user profiles
-  const user1 = await User.findById(userId1).populate('skills certifications');
-  const user2 = await User.findById(userId2).populate('skills certifications');
-
+  const { userId1, userId2 } = req.params;
+  
+  // Get both user profiles with their skills and certifications
+  const [user1, user2] = await Promise.all([
+    User.findById(userId1).select('name email bio skills certifications'),
+    User.findById(userId2).select('name email bio skills certifications')
+  ]);
+  
   if (!user1 || !user2) {
     res.status(404);
     throw new Error('One or both users not found');
   }
-
-  // Analyze profiles
-  const analysis = analyzeProfiles(user1, user2);
-
-  // Create new comparison
-  comparison = await ProfileComparison.create({
-    user1: userId1,
-    user2: userId2,
-    analysis
+  
+  // Check if profiles are public or if the requesting user is one of the users
+  if (
+    (!user1.publicProfile && user1._id.toString() !== req.user._id.toString()) ||
+    (!user2.publicProfile && user2._id.toString() !== req.user._id.toString())
+  ) {
+    res.status(403);
+    throw new Error('One or both profiles are private');
+  }
+  
+  // Get skill IDs for both users
+  const user1SkillIds = user1.skills.map(skill => skill.toString());
+  const user2SkillIds = user2.skills.map(skill => skill.toString());
+  
+  // Find common skills
+  const commonSkillIds = user1SkillIds.filter(id => user2SkillIds.includes(id));
+  
+  // Get certification IDs for both users
+  const user1CertIds = user1.certifications.map(cert => cert.toString());
+  const user2CertIds = user2.certifications.map(cert => cert.toString());
+  
+  // Find common certifications
+  const commonCertIds = user1CertIds.filter(id => user2CertIds.includes(id));
+  
+  // Calculate skill match percentage
+  const totalUniqueSkills = new Set([...user1SkillIds, ...user2SkillIds]).size;
+  const skillMatchPercentage = totalUniqueSkills > 0 
+    ? Math.round((commonSkillIds.length / totalUniqueSkills) * 100) 
+    : 0;
+  
+  res.json({
+    commonSkills: commonSkillIds.length,
+    commonCertifications: commonCertIds.length,
+    skillMatchPercentage,
+    user1: {
+      name: user1.name,
+      email: user1.email,
+      skillCount: user1SkillIds.length,
+      certificationCount: user1CertIds.length
+    },
+    user2: {
+      name: user2.name,
+      email: user2.email,
+      skillCount: user2SkillIds.length,
+      certificationCount: user2CertIds.length
+    }
   });
-
-  res.status(201).json(comparison);
 });
 
 // Helper function to analyze profiles

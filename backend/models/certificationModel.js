@@ -34,7 +34,7 @@ const certificationSchema = mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Skill'
   }],
-  certificateImage: {
+  certificateFile: {
     type: String
   },
   verificationStatus: {
