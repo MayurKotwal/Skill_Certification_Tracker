@@ -41,36 +41,42 @@ const createSkill = asyncHandler(async (req, res) => {
     throw new Error('Please provide name and category');
   }
 
-  // Check if skill already exists
-  let skill = await Skill.findOne({ name });
+  try {
+    // Check if skill already exists
+    let skill = await Skill.findOne({ name });
 
-  if (skill) {
-    // If skill exists, add user to it
-    if (!skill.users.includes(req.user._id)) {
-      skill.users.push(req.user._id);
-      await skill.save();
+    if (skill) {
+      // If skill exists, add user to it if not already added
+      if (!skill.users.includes(req.user._id)) {
+        skill.users.push(req.user._id);
+        await skill.save();
+      }
+    } else {
+      // Create new skill
+      skill = await Skill.create({
+        name,
+        category,
+        description,
+        level: level || 'beginner',
+        users: [req.user._id]
+      });
     }
-  } else {
-    // Create new skill
-    skill = await Skill.create({
-      name,
-      category,
-      description,
-      level: level || 'beginner',
-      users: [req.user._id]
-    });
-  }
 
-  // Update the user's skills array
-  const user = await User.findById(req.user._id);
-  if (user) {
-    if (!user.skills.includes(skill._id)) {
-      user.skills.push(skill._id);
-      await user.save();
+    // Update the user's skills array
+    const user = await User.findById(req.user._id);
+    if (user) {
+      if (!user.skills.includes(skill._id)) {
+        user.skills.push(skill._id);
+        await user.save();
+      }
     }
-  }
 
-  res.status(201).json(skill);
+    res.status(201).json(skill);
+  } catch (error) {
+    console.error('Error creating skill:', error);
+    res.status(500);
+    throw new Error('Error creating skill');
+  }
 });
 
 // @desc    Update skill

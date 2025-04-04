@@ -25,6 +25,7 @@ const AddSkill = () => {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const onChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -32,6 +33,8 @@ const AddSkill = () => {
   const onSubmit = async (e) => {
     e.preventDefault();
     try {
+      setLoading(true);
+      setError('');
       const token = localStorage.getItem('token');
       const config = {
         headers: {
@@ -39,13 +42,16 @@ const AddSkill = () => {
         },
       };
 
-      await axios.post('/api/skills', formData, config);
+      await axios.post('http://localhost:3001/api/skills', formData, config);
       setSuccess('Skill added successfully!');
       setTimeout(() => {
         navigate('/dashboard');
       }, 2000);
     } catch (err) {
-      setError(err.response?.data?.message || 'An error occurred');
+      console.error('Error adding skill:', err);
+      setError(err.response?.data?.message || 'An error occurred while adding the skill');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -75,6 +81,7 @@ const AddSkill = () => {
                 name="name"
                 value={formData.name}
                 onChange={onChange}
+                disabled={loading}
               />
             </Grid>
             <Grid item xs={12}>
@@ -85,6 +92,7 @@ const AddSkill = () => {
                 name="category"
                 value={formData.category}
                 onChange={onChange}
+                disabled={loading}
               />
             </Grid>
             <Grid item xs={12}>
@@ -95,6 +103,7 @@ const AddSkill = () => {
                   value={formData.level}
                   label="Skill Level"
                   onChange={onChange}
+                  disabled={loading}
                 >
                   <MenuItem value="beginner">Beginner</MenuItem>
                   <MenuItem value="intermediate">Intermediate</MenuItem>
@@ -112,6 +121,7 @@ const AddSkill = () => {
                 rows={4}
                 value={formData.description}
                 onChange={onChange}
+                disabled={loading}
               />
             </Grid>
             <Grid item xs={12}>
@@ -120,8 +130,9 @@ const AddSkill = () => {
                 variant="contained"
                 fullWidth
                 size="large"
+                disabled={loading}
               >
-                Add Skill
+                {loading ? 'Adding Skill...' : 'Add Skill'}
               </Button>
             </Grid>
           </Grid>

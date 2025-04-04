@@ -1,100 +1,82 @@
-# Skill & Certification Tracker
+# Skill Certification Tracker
 
-A web application for tracking and showcasing skills and certifications, built with the MERN stack (MongoDB, Express.js, React, Node.js).
+A web application that helps users track their certifications and automatically extracts skills using AI analysis. The system validates certificates, extracts relevant skills, and maintains a comprehensive skill profile for each user.
 
 ## Features
 
-- User authentication and authorization
-- Add and manage certifications
-- Track skills and proficiency levels
-- Profile comparison and analysis
-- Public profile sharing
-- Search for other profiles
-- Generate skill gap analysis and recommendations
+- Certificate Upload and Management
+- AI-Powered Certificate Analysis
+- Automatic Skill Extraction
+- Certificate Authenticity Validation
+- User Skill Profile Management
+- Interactive Skill Review Interface
 
 ## Tech Stack
 
-- **Frontend**: React, Material-UI
-- **Backend**: Node.js, Express.js
+- **Frontend**: React.js with Material-UI
+- **Backend**: Node.js with Express
 - **Database**: MongoDB
-- **Authentication**: JWT
+- **AI Integration**: Google's Gemini AI
+- **File Processing**: Multer, Sharp, PDF-Parse
 
-## Getting Started
-
-### Prerequisites
+## Prerequisites
 
 - Node.js (v14 or higher)
 - MongoDB
-- npm or yarn
+- Google Cloud Platform account (for Gemini AI API)
 
-### Installation
+## Setup
 
-1. Clone the repository
+1. Clone the repository:
 ```bash
-git clone https://github.com/your-username/skill-certification-tracker.git
+git clone https://github.com/yourusername/skill-certification-tracker.git
 cd skill-certification-tracker
 ```
 
-2. Install backend dependencies
+2. Install dependencies:
 ```bash
+# Install backend dependencies
 cd backend
 npm install
-```
 
-3. Install frontend dependencies
-```bash
+# Install frontend dependencies
 cd ../frontend
 npm install
 ```
 
-4. Create environment variables
-   
-Backend (.env file in backend directory):
+3. Set up environment variables:
+
+Create a `.env` file in the backend directory with the following:
 ```
 PORT=3001
-MONGODB_URI=mongodb://localhost:27017/skill-tracker
+MONGODB_URI=your_mongodb_uri
 JWT_SECRET=your_jwt_secret
-NODE_ENV=development
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
-5. Start the servers
-
-Backend:
+4. Start the application:
 ```bash
-cd backend
+# Start backend (from backend directory)
+npm run dev
+
+# Start frontend (from frontend directory)
 npm start
 ```
 
-Frontend:
-```bash
-cd frontend
-npm start
-```
+## API Endpoints
 
-The application will be available at:
-- Frontend: http://localhost:3000
-- Backend: http://localhost:3001
+### Certifications
+- `GET /api/certifications` - Get all certifications
+- `GET /api/certifications/:id` - Get single certification
+- `POST /api/certifications` - Add new certification
+- `POST /api/certifications/analyze` - Analyze certificate
+- `PUT /api/certifications/:id` - Update certification
+- `DELETE /api/certifications/:id` - Delete certification
 
-## Project Structure
-
-```
-skill-certification-tracker/
-├── backend/
-│   ├── config/
-│   ├── controllers/
-│   ├── middleware/
-│   ├── models/
-│   ├── routes/
-│   └── server.js
-├── frontend/
-│   ├── public/
-│   └── src/
-│       ├── components/
-│       ├── pages/
-│       ├── utils/
-│       └── App.js
-└── README.md
-```
+### Authentication
+- `POST /api/users/register` - Register new user
+- `POST /api/users/login` - Login user
+- `GET /api/users/profile` - Get user profile
 
 ## Contributing
 
@@ -104,12 +86,12 @@ skill-certification-tracker/
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## Team Members
-
-- [Your Name]
-- [Team Member 1]
-- [Team Member 2]
-
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Google Gemini AI for powering the certificate analysis
+- Material-UI for the frontend components
+- All contributors who have helped shape this project 

@@ -19,7 +19,7 @@ import {
   School as SchoolIcon,
   Code as CodeIcon,
 } from '@mui/icons-material';
-import api from '../utils/axiosConfig';
+import axios from 'axios';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -31,22 +31,53 @@ const Profile = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const res = await api.get('/users/me');
-        setUser(res.data);
-        setPublicProfile(res.data.publicProfile);
+        setLoading(true);
+        setError('');
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          setError('Please log in to view your profile');
+          navigate('/login');
+          return;
+        }
+
+        const config = {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        };
+
+        const res = await axios.get('http://localhost:3001/api/users/me', config);
+        if (res.data) {
+          setUser(res.data);
+          setPublicProfile(res.data.publicProfile);
+        } else {
+          throw new Error('No data received');
+        }
       } catch (err) {
-        setError('Failed to fetch user data');
+        console.error('Error fetching user data:', err);
+        const errorMessage = err.response?.data?.message || 'Failed to fetch user data. Please try again.';
+        setError(errorMessage);
+        if (err.response?.status === 401) {
+          localStorage.removeItem('token');
+          navigate('/login');
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchUserData();
-  }, []);
+  }, [navigate]);
 
   const handlePublicProfileChange = async () => {
     try {
-      await api.put('/users/profile', { publicProfile: !publicProfile });
+      await axios.put('http://localhost:3001/api/users/profile', { publicProfile: !publicProfile }, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
       setPublicProfile(!publicProfile);
     } catch (err) {
       setError('Failed to update profile visibility');
@@ -69,7 +100,26 @@ const Profile = () => {
   if (error) {
     return (
       <Container>
-        <Alert severity="error">{error}</Alert>
+        <Alert severity="error" sx={{ mt: 4 }}>
+          {error}
+        </Alert>
+      </Container>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Container>
+        <Alert severity="warning" sx={{ mt: 4 }}>
+          No user data available. Please try logging in again.
+        </Alert>
+        <Button
+          variant="contained"
+          onClick={() => navigate('/login')}
+          sx={{ mt: 2 }}
+        >
+          Go to Login
+        </Button>
       </Container>
     );
   }
@@ -91,6 +141,9 @@ const Profile = () => {
                   </Typography>
                   <Typography color="text.secondary" gutterBottom>
                     {user.email}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 2 }}>
+                    {user.bio || 'No bio added yet'}
                   </Typography>
                   <Button
                     variant="outlined"
@@ -130,6 +183,11 @@ const Profile = () => {
                             <Typography color="text.secondary">
                               Level: {skill.level}
                             </Typography>
+                            {skill.category && (
+                              <Typography color="text.secondary">
+                                Category: {skill.category}
+                              </Typography>
+                            )}
                           </CardContent>
                         </Card>
                       </Grid>
@@ -168,6 +226,11 @@ const Profile = () => {
                             <Typography color="text.secondary">
                               Issue Date: {new Date(cert.issueDate).toLocaleDateString()}
                             </Typography>
+                            {cert.credentialId && (
+                              <Typography color="text.secondary">
+                                Credential ID: {cert.credentialId}
+                              </Typography>
+                            )}
                           </CardContent>
                         </Card>
                       </Grid>

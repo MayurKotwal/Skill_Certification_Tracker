@@ -4,22 +4,11 @@ const multer = require('multer');
 const path = require('path');
 const User = require('../models/userModel');
 const fs = require('fs');
+const { analyzeCertificate, validateCertificateAuthenticity } = require('../utils/certificateAnalyzer');
+const { extractSkillsFromCertificate, addExtractedSkillsToUser } = require('../utils/skillExtractor');
 
 // Configure multer for file upload
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = path.join(__dirname, '../uploads');
-    // Create the uploads directory if it doesn't exist
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
@@ -71,33 +60,133 @@ const getCertification = asyncHandler(async (req, res) => {
 // @route   POST /api/certifications
 // @access  Private
 const addCertification = asyncHandler(async (req, res) => {
-  const { title, issuer, issueDate, expiryDate, credentialId, description } = req.body;
+  try {
+    const { title, issuer, issueDate, credentialId, credentialUrl, description } = req.body;
+    
+    // Validate required fields
+    if (!title || !issuer || !issueDate) {
+      return res.status(400).json({ message: 'Title, issuer, and issue date are required' });
+    }
 
-  if (!title || !issuer || !issueDate) {
-    res.status(400);
-    throw new Error('Please provide title, issuer, and issue date');
+    let aiAnalysis = null;
+    let authenticity = null;
+    let extractedSkills = [];
+
+    // If a certificate file is uploaded, analyze it
+    if (req.file) {
+      try {
+        // Determine file type
+        const fileType = req.file.mimetype.includes('pdf') ? 'pdf' : 'image';
+        
+        // Analyze certificate
+        aiAnalysis = await analyzeCertificate(
+          req.file.buffer,
+          fileType,
+          { title, issuer, issueDate, credentialId }
+        );
+
+        // Validate authenticity
+        authenticity = await validateCertificateAuthenticity(aiAnalysis);
+
+        // If there are major discrepancies, flag them
+        if (authenticity.authenticity_score < 0.5) {
+          return res.status(400).json({
+            message: 'Certificate validation failed',
+            analysis: aiAnalysis,
+            authenticity: authenticity
+          });
+        }
+      } catch (error) {
+        console.error('AI Analysis Error:', error);
+        // Continue with certification creation even if AI analysis fails
+      }
+    }
+
+    // Extract skills from certificate information
+    try {
+      extractedSkills = await extractSkillsFromCertificate({
+        title,
+        issuer,
+        description,
+        aiAnalysis
+      });
+    } catch (error) {
+      console.error('Skill Extraction Error:', error);
+      // Continue with certification creation even if skill extraction fails
+    }
+
+    const certification = new Certification({
+      user: req.user.id,
+      title,
+      issuer,
+      issueDate,
+      credentialId,
+      credentialUrl,
+      description,
+      certificateFile: req.file ? `${Date.now()}-${req.file.originalname}` : undefined,
+      aiAnalysis: aiAnalysis ? {
+        extractedInfo: aiAnalysis.extracted_info,
+        validation: aiAnalysis.validation,
+        suggestedSkills: aiAnalysis.suggested_skills,
+        category: aiAnalysis.category,
+        authenticity: authenticity
+      } : undefined
+    });
+
+    await certification.save();
+
+    // Save the file to disk after successful analysis
+    if (req.file) {
+      const uploadDir = path.join(__dirname, '../uploads');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      await fs.promises.writeFile(
+        path.join(uploadDir, certification.certificateFile),
+        req.file.buffer
+      );
+    }
+
+    // Add certification to user's certifications array
+    await User.findByIdAndUpdate(
+      req.user.id,
+      { $push: { certifications: certification._id } }
+    );
+
+    // Add extracted skills to user's profile
+    let addedSkills = [];
+    if (extractedSkills.length > 0) {
+      try {
+        addedSkills = await addExtractedSkillsToUser(req.user.id, extractedSkills);
+      } catch (error) {
+        console.error('Error adding skills:', error);
+      }
+    }
+
+    // Prepare response
+    const response = {
+      certification,
+      message: 'Certification added successfully'
+    };
+
+    if (addedSkills.length > 0) {
+      response.addedSkills = addedSkills;
+      response.message += ` with ${addedSkills.length} new skills extracted`;
+    }
+
+    if (aiAnalysis?.suggested_skills) {
+      response.suggestedSkills = aiAnalysis.suggested_skills;
+    }
+
+    if (authenticity) {
+      response.authenticity = authenticity;
+    }
+
+    res.status(201).json(response);
+  } catch (error) {
+    console.error('Error creating certification:', error);
+    res.status(500).json({ message: 'Error creating certification' });
   }
-
-  // Create the certification
-  const certification = await Certification.create({
-    user: req.user._id,
-    title,
-    issuer,
-    issueDate,
-    expiryDate,
-    credentialId,
-    description,
-    certificateFile: req.file ? req.file.filename : null
-  });
-
-  // Update the user's certifications array
-  const user = await User.findById(req.user._id);
-  if (user) {
-    user.certifications.push(certification._id);
-    await user.save();
-  }
-
-  res.status(201).json(certification);
 });
 
 // @desc    Update certification
@@ -164,11 +253,107 @@ const deleteCertification = asyncHandler(async (req, res) => {
   res.json({ message: 'Certification removed' });
 });
 
+// @desc    Analyze certificate file
+// @route   POST /api/certifications/analyze
+// @access  Private
+const analyzeCertificationFile = asyncHandler(async (req, res) => {
+  try {
+    console.log('Starting certificate analysis...');
+    console.log('Request headers:', req.headers);
+    
+    // Check if file was uploaded
+    if (!req.file) {
+      console.error('No file uploaded');
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    // Log file details
+    console.log('File details:', {
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+      hasBuffer: !!req.file.buffer,
+      bufferLength: req.file.buffer ? req.file.buffer.length : 0
+    });
+
+    // Get user input from request body
+    const { title, issuer, issueDate, credentialId } = req.body;
+    console.log('User input:', { title, issuer, issueDate, credentialId });
+
+    // Test Gemini connection before proceeding
+    try {
+      const { testGeminiConnection } = require('../config/geminiConfig');
+      await testGeminiConnection();
+      console.log('Gemini AI connection test passed');
+    } catch (geminiError) {
+      console.error('Gemini AI connection test failed:', geminiError);
+      return res.status(500).json({ 
+        message: 'Error connecting to Gemini AI',
+        error: geminiError.message
+      });
+    }
+
+    // Determine file type
+    const fileType = req.file.mimetype.includes('pdf') ? 'pdf' : 'image';
+    console.log('File type determined:', fileType);
+
+    try {
+      // Analyze certificate
+      console.log('Starting certificate analysis...');
+      const aiAnalysis = await analyzeCertificate(
+        req.file.buffer,
+        fileType,
+        { title, issuer, issueDate, credentialId }
+      );
+      console.log('AI Analysis completed:', JSON.stringify(aiAnalysis, null, 2));
+
+      // Validate authenticity
+      console.log('Starting authenticity validation...');
+      const authenticity = await validateCertificateAuthenticity(aiAnalysis);
+      console.log('Authenticity validation completed:', JSON.stringify(authenticity, null, 2));
+
+      // Extract skills
+      console.log('Starting skill extraction...');
+      const extractedSkills = await extractSkillsFromCertificate({
+        title: title || aiAnalysis.extracted_info.title,
+        issuer: issuer || aiAnalysis.extracted_info.issuer,
+        description: req.body.description,
+        aiAnalysis
+      });
+      console.log('Skills extracted:', JSON.stringify(extractedSkills, null, 2));
+
+      res.json({
+        analysis: aiAnalysis,
+        authenticity,
+        extractedSkills,
+        message: 'Certificate analyzed successfully'
+      });
+    } catch (analysisError) {
+      console.error('Error during analysis process:', analysisError);
+      console.error('Analysis error stack:', analysisError.stack);
+      return res.status(500).json({ 
+        message: 'Error analyzing certificate',
+        error: analysisError.message,
+        stack: process.env.NODE_ENV === 'development' ? analysisError.stack : undefined
+      });
+    }
+  } catch (error) {
+    console.error('Error in analyzeCertificationFile:', error);
+    console.error('Stack trace:', error.stack);
+    res.status(500).json({ 
+      message: 'Error analyzing certificate',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
 module.exports = {
   getCertifications,
   getCertification,
   addCertification,
   updateCertification,
   deleteCertification,
+  analyzeCertificationFile,
   upload
 }; 

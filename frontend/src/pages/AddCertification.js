@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
+import SkillReviewDialog from '../components/SkillReviewDialog';
 
 const AddCertification = () => {
   const navigate = useNavigate();
@@ -22,7 +23,6 @@ const AddCertification = () => {
     title: '',
     issuer: '',
     issueDate: '',
-    expiryDate: '',
     credentialId: '',
     credentialUrl: '',
     description: '',
@@ -31,6 +31,10 @@ const AddCertification = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showSkillReview, setShowSkillReview] = useState(false);
+  const [extractedSkills, setExtractedSkills] = useState([]);
+  const [suggestedSkills, setSuggestedSkills] = useState([]);
+  const [authenticity, setAuthenticity] = useState(null);
 
   const { getRootProps, getInputProps } = useDropzone({
     accept: {
@@ -52,38 +56,10 @@ const AddCertification = () => {
   const onChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Check file size (5MB limit)
-      if (file.size > 5 * 1024 * 1024) {
-        setError('File size must be less than 5MB');
-        return;
-      }
-      
-      // Check file type
-      if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
-        setError('Only images and PDF files are allowed');
-        return;
-      }
-      
-      setFile(file);
-      setError('');
-    }
-  };
-
-  const onSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!formData.title || !formData.issuer || !formData.issueDate) {
-      setError('Please fill in all required fields');
-      return;
-    }
-
+  const handleSkillConfirm = async (confirmedSkills) => {
     try {
       setLoading(true);
-      setError('');
-
+      const token = localStorage.getItem('token');
       const formDataToSend = new FormData();
       
       // Add form fields
@@ -98,30 +74,142 @@ const AddCertification = () => {
         formDataToSend.append('certificateFile', file);
       }
 
-      // Get token from localStorage
+      // Add confirmed skills
+      formDataToSend.append('confirmedSkills', JSON.stringify(confirmedSkills));
+
+      const response = await axios.post(
+        'http://localhost:3001/api/certifications',
+        formDataToSend,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setSuccess('Certification and skills added successfully!');
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 2000);
+    } catch (err) {
+      console.error('Error adding certification:', err);
+      setError(err.response?.data?.message || 'Error adding certification and skills');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      setError('');
       const token = localStorage.getItem('token');
+      
       if (!token) {
         setError('You must be logged in to add a certification');
-        setLoading(false);
         return;
       }
 
-      const response = await axios.post('http://localhost:3001/api/certifications', formDataToSend, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${token}`
-        },
+      // Validate file
+      if (!file) {
+        setError('Please upload a certificate file');
+        return;
+      }
+
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+      if (!validTypes.includes(file.type)) {
+        setError(`Invalid file type: ${file.type}. Please upload a PDF or image file (JPEG, PNG)`);
+        return;
+      }
+
+      // Validate file size
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        setError(`File size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds the maximum limit of 5MB`);
+        return;
+      }
+
+      const formDataToSend = new FormData();
+      
+      // Add form fields
+      Object.keys(formData).forEach((key) => {
+        if (formData[key]) {
+          formDataToSend.append(key, formData[key]);
+        }
+      });
+      
+      // Add file
+      formDataToSend.append('certificateFile', file);
+
+      console.log('Uploading file:', {
+        name: file.name,
+        type: file.type,
+        size: file.size
       });
 
-      if (response.data) {
-        setSuccess('Certification added successfully!');
-        setTimeout(() => {
-          navigate('/profile');
-        }, 1500);
+      // First, get the analysis and extracted skills
+      console.log('Sending analysis request...');
+      const analysisResponse = await axios.post(
+        'http://localhost:3001/api/certifications/analyze',
+        formDataToSend,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            console.log(`Upload progress: ${percentCompleted}%`);
+          },
+        }
+      );
+
+      console.log('Analysis response:', analysisResponse.data);
+
+      if (!analysisResponse.data) {
+        throw new Error('No response data received from server');
       }
+
+      const { analysis, extractedSkills: skills, authenticity } = analysisResponse.data;
+      
+      if (!analysis || !skills || !authenticity) {
+        console.error('Invalid analysis response:', analysisResponse.data);
+        throw new Error('Server returned incomplete analysis data');
+      }
+
+      setExtractedSkills(skills || []);
+      setSuggestedSkills(analysis?.suggested_skills || []);
+      setAuthenticity(authenticity);
+      setShowSkillReview(true);
     } catch (err) {
-      console.error('Upload error:', err);
-      setError(err.response?.data?.message || 'Error uploading certification');
+      console.error('Error analyzing certificate:', err);
+      
+      // Log detailed error information
+      const errorDetails = {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        stack: err.stack
+      };
+      console.error('Error details:', errorDetails);
+      
+      // Handle different error scenarios
+      if (!navigator.onLine) {
+        setError('Network connection lost. Please check your internet connection and try again.');
+      } else if (err.response?.status === 401) {
+        setError('Your session has expired. Please log in again.');
+        setTimeout(() => navigate('/login'), 2000);
+      } else if (err.response?.status === 413) {
+        setError('File size too large. Please upload a smaller file (max 5MB).');
+      } else if (err.response?.data?.error) {
+        setError(`Error analyzing certificate: ${err.response.data.error}`);
+      } else if (err.message.includes('Network Error')) {
+        setError('Unable to connect to the server. Please check your internet connection.');
+      } else {
+        setError(`Error analyzing certificate: ${err.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -153,6 +241,7 @@ const AddCertification = () => {
                 name="title"
                 value={formData.title}
                 onChange={onChange}
+                disabled={loading}
               />
             </Grid>
             <Grid item xs={12}>
@@ -163,9 +252,10 @@ const AddCertification = () => {
                 name="issuer"
                 value={formData.issuer}
                 onChange={onChange}
+                disabled={loading}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12}>
               <TextField
                 required
                 fullWidth
@@ -175,17 +265,7 @@ const AddCertification = () => {
                 InputLabelProps={{ shrink: true }}
                 value={formData.issueDate}
                 onChange={onChange}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Expiry Date"
-                name="expiryDate"
-                type="date"
-                InputLabelProps={{ shrink: true }}
-                value={formData.expiryDate}
-                onChange={onChange}
+                disabled={loading}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -195,6 +275,7 @@ const AddCertification = () => {
                 name="credentialId"
                 value={formData.credentialId}
                 onChange={onChange}
+                disabled={loading}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -204,6 +285,7 @@ const AddCertification = () => {
                 name="credentialUrl"
                 value={formData.credentialUrl}
                 onChange={onChange}
+                disabled={loading}
               />
             </Grid>
             <Grid item xs={12}>
@@ -215,6 +297,7 @@ const AddCertification = () => {
                 rows={4}
                 value={formData.description}
                 onChange={onChange}
+                disabled={loading}
               />
             </Grid>
             <Grid item xs={12}>
@@ -231,7 +314,7 @@ const AddCertification = () => {
                   },
                 }}
               >
-                <input {...getInputProps()} />
+                <input {...getInputProps()} disabled={loading} />
                 {file ? (
                   <Typography>
                     Selected file: {file.name}
@@ -247,16 +330,24 @@ const AddCertification = () => {
               <Button
                 type="submit"
                 variant="contained"
-                color="primary"
                 fullWidth
                 disabled={loading}
               >
-                {loading ? 'Uploading...' : 'Add Certification'}
+                {loading ? 'Processing...' : 'Add Certification'}
               </Button>
             </Grid>
           </Grid>
         </Box>
       </Box>
+
+      <SkillReviewDialog
+        open={showSkillReview}
+        onClose={() => setShowSkillReview(false)}
+        extractedSkills={extractedSkills}
+        suggestedSkills={suggestedSkills}
+        authenticity={authenticity}
+        onConfirm={handleSkillConfirm}
+      />
     </Container>
   );
 };

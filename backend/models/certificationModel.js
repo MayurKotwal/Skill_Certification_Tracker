@@ -18,9 +18,6 @@ const certificationSchema = mongoose.Schema({
     type: Date,
     required: [true, 'Please add an issue date']
   },
-  expiryDate: {
-    type: Date
-  },
   credentialId: {
     type: String
   },

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   Container,
   Grid,
@@ -9,6 +9,7 @@ import {
   Button,
   Box,
   CircularProgress,
+  Alert,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -22,6 +23,7 @@ import axios from 'axios';
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -29,23 +31,44 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
+        setLoading(true);
+        setError('');
         const token = localStorage.getItem('token');
+        
+        if (!token) {
+          setError('Please log in to view your dashboard');
+          navigate('/login');
+          return;
+        }
+
         const config = {
           headers: {
+            'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
         };
-        const res = await axios.get('/api/users/me', config);
-        setUser(res.data);
+
+        const res = await axios.get('http://localhost:3001/api/users/me', config);
+        if (res.data) {
+          setUser(res.data);
+        } else {
+          throw new Error('No data received');
+        }
       } catch (err) {
-        setError('Failed to fetch user data');
+        console.error('Error fetching user data:', err);
+        const errorMessage = err.response?.data?.message || 'Failed to fetch user data. Please try again.';
+        setError(errorMessage);
+        if (err.response?.status === 401) {
+          localStorage.removeItem('token');
+          navigate('/login');
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchUserData();
-  }, []);
+  }, [navigate]);
 
   const skillLevels = {
     beginner: 0,
@@ -56,7 +79,9 @@ const Dashboard = () => {
 
   if (user?.skills) {
     user.skills.forEach((skill) => {
-      skillLevels[skill.level]++;
+      if (skill.level) {
+        skillLevels[skill.level.toLowerCase()]++;
+      }
     });
   }
 
@@ -96,9 +121,26 @@ const Dashboard = () => {
   if (error) {
     return (
       <Container>
-        <Typography color="error" variant="h6">
+        <Alert severity="error" sx={{ mt: 4 }}>
           {error}
-        </Typography>
+        </Alert>
+      </Container>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Container>
+        <Alert severity="warning" sx={{ mt: 4 }}>
+          No user data available. Please try logging in again.
+        </Alert>
+        <Button
+          variant="contained"
+          onClick={() => navigate('/login')}
+          sx={{ mt: 2 }}
+        >
+          Go to Login
+        </Button>
       </Container>
     );
   }
@@ -107,7 +149,7 @@ const Dashboard = () => {
     <Container>
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" gutterBottom>
-          Welcome, {user?.name}!
+          Welcome, {user.name}!
         </Typography>
         <Typography variant="subtitle1" color="text.secondary">
           Track and showcase your skills and certifications
@@ -140,7 +182,7 @@ const Dashboard = () => {
                 </Button>
               </Box>
               <Typography variant="h3" component="div">
-                {user?.certifications?.length || 0}
+                {user.certifications?.length || 0}
               </Typography>
               <Typography color="text.secondary">
                 Total Certifications
@@ -174,7 +216,7 @@ const Dashboard = () => {
                 </Button>
               </Box>
               <Typography variant="h3" component="div">
-                {user?.skills?.length || 0}
+                {user.skills?.length || 0}
               </Typography>
               <Typography color="text.secondary">
                 Total Skills
@@ -189,8 +231,14 @@ const Dashboard = () => {
               <Typography variant="h6" gutterBottom>
                 Skill Level Distribution
               </Typography>
-              <Box sx={{ height: 300, display: 'flex', justifyContent: 'center' }}>
-                <Pie data={chartData} />
+              <Box sx={{ height: 300, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                {user.skills?.length > 0 ? (
+                  <Pie data={chartData} />
+                ) : (
+                  <Typography color="text.secondary">
+                    Add skills to see your skill level distribution
+                  </Typography>
+                )}
               </Box>
             </CardContent>
           </Card>
