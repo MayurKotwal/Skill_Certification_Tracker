@@ -1,6 +1,8 @@
+// Load environment variables first
+require('dotenv').config({ path: require('path').resolve(__dirname, '.env') });
+
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const path = require('path');
 const connectDB = require('./config/db');
@@ -9,9 +11,6 @@ const certificationRoutes = require('./routes/certificationRoutes');
 const skillRoutes = require('./routes/skillRoutes');
 const profileComparisonRoutes = require('./routes/profileComparisonRoutes');
 const fs = require('fs');
-
-// Load environment variables from the correct path
-dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 // Create Express app
 const app = express();

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -33,10 +33,14 @@ const SkillReviewDialog = ({
   suggestedSkills,
   authenticity,
 }) => {
-  const [skills, setSkills] = useState(extractedSkills.map(skill => ({
-    ...skill,
-    isEditing: false
-  })));
+  useEffect(() => {
+    setSkills(extractedSkills.map(skill => ({
+      ...skill,
+      isEditing: false
+    })));
+  }, [extractedSkills]);
+
+  const [skills, setSkills] = useState([]);
   const [newSkill, setNewSkill] = useState({
     name: '',
     level: 'beginner',

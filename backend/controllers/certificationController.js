@@ -276,22 +276,26 @@ const analyzeCertificationFile = asyncHandler(async (req, res) => {
       bufferLength: req.file.buffer ? req.file.buffer.length : 0
     });
 
+    // Validate file type
+    if (!req.file.mimetype.startsWith('image/') && req.file.mimetype !== 'application/pdf') {
+      console.error('Invalid file type:', req.file.mimetype);
+      return res.status(400).json({ 
+        message: 'Invalid file type. Please upload a PDF or image file (JPEG, PNG)' 
+      });
+    }
+
+    // Validate file size
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (req.file.size > maxSize) {
+      console.error('File too large:', req.file.size);
+      return res.status(400).json({ 
+        message: `File size (${(req.file.size / 1024 / 1024).toFixed(2)}MB) exceeds the maximum limit of 5MB` 
+      });
+    }
+
     // Get user input from request body
     const { title, issuer, issueDate, credentialId } = req.body;
     console.log('User input:', { title, issuer, issueDate, credentialId });
-
-    // Test Gemini connection before proceeding
-    try {
-      const { testGeminiConnection } = require('../config/geminiConfig');
-      await testGeminiConnection();
-      console.log('Gemini AI connection test passed');
-    } catch (geminiError) {
-      console.error('Gemini AI connection test failed:', geminiError);
-      return res.status(500).json({ 
-        message: 'Error connecting to Gemini AI',
-        error: geminiError.message
-      });
-    }
 
     // Determine file type
     const fileType = req.file.mimetype.includes('pdf') ? 'pdf' : 'image';

@@ -14,6 +14,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
+import EditProfile from './pages/EditProfile';
 import PublicProfile from './pages/PublicProfile';
 import AddCertification from './pages/AddCertification';
 import AddSkill from './pages/AddSkill';
@@ -51,6 +52,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/profile/edit" element={<EditProfile />} />
             <Route path="/profile/:profileUrl" element={<PublicProfile />} />
             <Route path="/add-certification" element={<AddCertification />} />
             <Route path="/add-skill" element={<AddSkill />} />

@@ -1,7 +1,7 @@
 const sharp = require('sharp');
 const pdfParse = require('pdf-parse');
 const fs = require('fs').promises;
-const { visionModel, textModel } = require('../config/geminiConfig');
+const { model } = require('../config/geminiConfig');
 
 // Function to extract text from PDF
 async function extractTextFromPDF(pdfBuffer) {
@@ -20,13 +20,26 @@ async function extractTextFromPDF(pdfBuffer) {
 async function processImageForAI(imageBuffer) {
   try {
     console.log('Starting image processing...');
+    
+    // Process image with sharp
     const processedImage = await sharp(imageBuffer)
       .resize(1024, 1024, { fit: 'inside' })
-      .toFormat('png')
+      .toFormat('jpeg') // Convert to JPEG for better compatibility
       .toBuffer();
     
+    // Convert to base64
+    const base64Image = processedImage.toString('base64');
+    
+    // Create parts array for Gemini Vision API
+    const imagePart = {
+      inlineData: {
+        data: base64Image,
+        mimeType: 'image/jpeg'
+      }
+    };
+
     console.log('Image processed successfully');
-    return processedImage;
+    return imagePart;
   } catch (error) {
     console.error('Error in processImageForAI:', error);
     throw new Error(`Failed to process image: ${error.message}`);
@@ -34,7 +47,7 @@ async function processImageForAI(imageBuffer) {
 }
 
 // Function to ensure response is valid JSON
-async function getValidJSONResponse(model, prompt, retries = 2) {
+async function getValidJSONResponse(prompt, retries = 2) {
   for (let i = 0; i < retries; i++) {
     try {
       console.log(`Attempt ${i + 1} to get valid JSON response...`);
@@ -101,20 +114,18 @@ Remember:
 
 User provided information for comparison:
 ${JSON.stringify(userInput, null, 2)}
-
 `;
 
-    let content;
     let result;
 
     if (fileType === 'pdf') {
       console.log('Processing PDF file...');
       try {
-        content = await extractTextFromPDF(fileBuffer);
+        const content = await extractTextFromPDF(fileBuffer);
         console.log('PDF content extracted, length:', content.length);
         
         const pdfPrompt = prompt + `\n\nAnalyze this certificate text:\n${content}`;
-        result = await getValidJSONResponse(textModel, pdfPrompt);
+        result = await getValidJSONResponse(pdfPrompt);
       } catch (pdfError) {
         console.error('PDF processing error:', pdfError);
         throw new Error(`PDF processing failed: ${pdfError.message}`);
@@ -122,18 +133,15 @@ ${JSON.stringify(userInput, null, 2)}
     } else {
       console.log('Processing image file...');
       try {
-        const processedImage = await processImageForAI(fileBuffer);
-        const imageBase64 = processedImage.toString('base64');
-
-        const imagePart = {
-          inlineData: {
-            data: imageBase64,
-            mimeType: 'image/png'
-          }
-        };
-
+        const imagePart = await processImageForAI(fileBuffer);
         console.log('Sending image to Gemini AI Vision model...');
-        result = await getValidJSONResponse(visionModel, [prompt, imagePart]);
+        
+        // Create the complete prompt array for vision model
+        const visionPrompt = [{
+          text: prompt
+        }, imagePart];
+        
+        result = await getValidJSONResponse(visionPrompt);
       } catch (imageError) {
         console.error('Image processing error:', imageError);
         throw new Error(`Image processing failed: ${imageError.message}`);
@@ -178,7 +186,7 @@ Rules:
 Analysis to evaluate:
 ${JSON.stringify(analysis, null, 2)}`;
 
-    return await getValidJSONResponse(textModel, prompt);
+    return await getValidJSONResponse(prompt);
   } catch (error) {
     console.error('Error in validateCertificateAuthenticity:', error);
     console.error('Stack trace:', error.stack);

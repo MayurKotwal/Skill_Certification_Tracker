@@ -1,6 +1,7 @@
 const User = require('../models/userModel');
 const generateToken = require('../utils/generateToken');
 const asyncHandler = require('express-async-handler');
+const bcrypt = require('bcrypt');
 
 // @desc    Register new user
 // @route   POST /api/users/register
@@ -196,6 +197,38 @@ const getUserById = asyncHandler(async (req, res) => {
   res.json(user);
 });
 
+// @desc    Change user password
+// @route   PUT /api/users/password
+// @access  Private
+const changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    res.status(400);
+    throw new Error('Please provide both current and new password');
+  }
+
+  const user = await User.findById(req.user._id).select('+password');
+
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  // Check if current password matches
+  const isMatch = await bcrypt.compare(currentPassword, user.password);
+  if (!isMatch) {
+    res.status(401);
+    throw new Error('Current password is incorrect');
+  }
+
+  // Update password
+  user.password = newPassword;
+  await user.save();
+
+  res.json({ message: 'Password updated successfully' });
+});
+
 module.exports = {
   registerUser,
   loginUser,
@@ -204,5 +237,6 @@ module.exports = {
   getPublicProfile,
   uploadProfileImage,
   searchUsers,
-  getUserById
+  getUserById,
+  changePassword
 }; 

@@ -9,7 +9,8 @@ const {
   getPublicProfile,
   uploadProfileImage,
   searchUsers,
-  getUserById
+  getUserById,
+  changePassword
 } = require('../controllers/userController');
 const multer = require('multer');
 const path = require('path');
@@ -34,6 +35,7 @@ router.get('/public/:profileUrl', getPublicProfile);
 // Protected routes
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
+router.put('/password', protect, changePassword);
 router.post('/upload', protect, upload.single('image'), uploadProfileImage);
 router.get('/search', protect, searchUsers);
 router.get('/:id', protect, getUserById);

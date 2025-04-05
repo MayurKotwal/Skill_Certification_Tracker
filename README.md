@@ -1,23 +1,32 @@
 # Skill Certification Tracker
 
-A web application that helps users track their certifications and automatically extracts skills using AI analysis. The system validates certificates, extracts relevant skills, and maintains a comprehensive skill profile for each user.
+A full-stack web application for tracking and managing professional certifications and skills. Built with the MERN stack (MongoDB, Express.js, React, Node.js).
 
 ## Features
 
-- Certificate Upload and Management
-- AI-Powered Certificate Analysis
-- Automatic Skill Extraction
-- Certificate Authenticity Validation
-- User Skill Profile Management
-- Interactive Skill Review Interface
+- User authentication and authorization
+- Certificate upload and analysis using Gemini AI
+- Skill tracking and management
+- Profile management
+- Certificate verification
+- Public profile sharing
+- Profile comparison
 
 ## Tech Stack
 
-- **Frontend**: React.js with Material-UI
-- **Backend**: Node.js with Express
-- **Database**: MongoDB
-- **AI Integration**: Google's Gemini AI
-- **File Processing**: Multer, Sharp, PDF-Parse
+### Frontend
+- React.js
+- Material-UI
+- Axios
+- React Router
+
+### Backend
+- Node.js
+- Express.js
+- MongoDB with Mongoose
+- JWT Authentication
+- Multer for file uploads
+- Google's Gemini AI API
 
 ## Prerequisites
 
@@ -25,65 +34,73 @@ A web application that helps users track their certifications and automatically 
 - MongoDB
 - Google Cloud Platform account (for Gemini AI API)
 
-## Setup
+## Installation
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/skill-certification-tracker.git
+git clone <repository-url>
 cd skill-certification-tracker
 ```
 
-2. Install dependencies:
+2. Install backend dependencies:
 ```bash
-# Install backend dependencies
 cd backend
 npm install
+```
 
-# Install frontend dependencies
+3. Install frontend dependencies:
+```bash
 cd ../frontend
 npm install
 ```
 
-3. Set up environment variables:
-
-Create a `.env` file in the backend directory with the following:
+4. Create a .env file in the backend directory with the following variables:
 ```
 PORT=3001
-MONGODB_URI=your_mongodb_uri
+MONGODB_URI=mongodb://localhost:27017/skill_tracker
 JWT_SECRET=your_jwt_secret
 GEMINI_API_KEY=your_gemini_api_key
 ```
 
-4. Start the application:
-```bash
-# Start backend (from backend directory)
-npm run dev
+## Running the Application
 
-# Start frontend (from frontend directory)
+1. Start the backend server:
+```bash
+cd backend
 npm start
 ```
 
-## API Endpoints
+2. Start the frontend development server:
+```bash
+cd frontend
+npm start
+```
 
-### Certifications
-- `GET /api/certifications` - Get all certifications
-- `GET /api/certifications/:id` - Get single certification
-- `POST /api/certifications` - Add new certification
-- `POST /api/certifications/analyze` - Analyze certificate
-- `PUT /api/certifications/:id` - Update certification
-- `DELETE /api/certifications/:id` - Delete certification
+The application will be available at http://localhost:3000
 
-### Authentication
-- `POST /api/users/register` - Register new user
-- `POST /api/users/login` - Login user
-- `GET /api/users/profile` - Get user profile
+## API Documentation
+
+### Authentication Endpoints
+- POST /api/users/register - Register a new user
+- POST /api/users/login - Login user
+- GET /api/users/me - Get current user profile
+
+### Certification Endpoints
+- POST /api/certifications - Add new certification
+- GET /api/certifications - Get user's certifications
+- POST /api/certifications/analyze - Analyze certificate
+
+### Profile Endpoints
+- PUT /api/users/profile - Update user profile
+- PUT /api/users/password - Change password
+- POST /api/users/upload - Upload profile image
 
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
 ## License
