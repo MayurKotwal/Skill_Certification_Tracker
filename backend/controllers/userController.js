@@ -6,32 +6,45 @@ const asyncHandler = require('express-async-handler');
 // @route   POST /api/users/register
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, password } = req.body;
+  try {
+    const { name, email, password } = req.body;
 
-  const userExists = await User.findOne({ email });
+    if (!name || !email || !password) {
+      res.status(400);
+      throw new Error('Please provide all required fields');
+    }
 
-  if (userExists) {
-    res.status(400);
-    throw new Error('User already exists');
-  }
+    const userExists = await User.findOne({ email });
 
-  const user = await User.create({
-    name,
-    email,
-    password,
-    profileUrl: name.toLowerCase().replace(/\s+/g, '-')
-  });
+    if (userExists) {
+      res.status(400);
+      throw new Error('User already exists');
+    }
 
-  if (user) {
-    res.status(201).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      token: generateToken(user._id),
+    const user = await User.create({
+      name,
+      email,
+      password
     });
-  } else {
-    res.status(400);
-    throw new Error('Invalid user data');
+
+    if (user) {
+      res.status(201).json({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        profileUrl: user.profileUrl,
+        token: generateToken(user._id),
+      });
+    } else {
+      res.status(400);
+      throw new Error('Invalid user data');
+    }
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(error.status || 500).json({
+      message: error.message || 'Something went wrong during registration',
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 

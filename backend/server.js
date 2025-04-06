@@ -11,7 +11,7 @@ const profileComparisonRoutes = require('./routes/profileComparisonRoutes');
 const fs = require('fs');
 
 // Load environment variables from the correct path
-dotenv.config({ path: path.resolve(__dirname, '.env') });
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 // Create Express app
 const app = express();
