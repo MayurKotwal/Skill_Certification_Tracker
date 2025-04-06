@@ -13,11 +13,15 @@ import {
   FormControlLabel,
   CircularProgress,
   Alert,
+  IconButton,
 } from '@mui/material';
 import {
   Edit as EditIcon,
   School as SchoolIcon,
   Code as CodeIcon,
+  Visibility as VisibilityIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import api from '../utils/axiosConfig';
 
@@ -53,6 +57,56 @@ const Profile = () => {
     }
   };
 
+  const handleViewCertificate = (certificateFile) => {
+    if (certificateFile) {
+      const certificateUrl = `http://localhost:3001/uploads/${certificateFile}`;
+      console.log('Opening certificate:', certificateUrl);
+      window.open(certificateUrl, '_blank');
+    }
+  };
+
+  const handleDeleteCertificate = async (certId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${process.env.REACT_APP_API_URL}/api/certifications/${certId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      // Refresh user data after deletion
+      const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/users/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      setUser(res.data);
+    } catch (error) {
+      console.error('Error deleting certificate:', error);
+      setError('Failed to delete certificate');
+    }
+  };
+
+  const handleDeleteSkill = async (skillId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${process.env.REACT_APP_API_URL}/api/skills/${skillId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      // Refresh user data after deletion
+      const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/users/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      setUser(res.data);
+    } catch (error) {
+      console.error('Error deleting skill:', error);
+      setError('Failed to delete skill');
+    }
+  };
+
   if (loading) {
     return (
       <Box
@@ -75,23 +129,39 @@ const Profile = () => {
   }
 
   return (
-    <Container>
-      <Box sx={{ mt: 4 }}>
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={4}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <Container maxWidth="lg">
+      <Box sx={{ mt: 4, mb: 6 }}>
+        <Grid container spacing={4}>
+          {/* Profile Header */}
+          <Grid item xs={12}>
+            <Card sx={{ 
+              p: 3, 
+              background: 'linear-gradient(135deg, #1976d2 0%, #64b5f6 100%)',
+              color: 'white',
+              borderRadius: 2,
+              boxShadow: 3
+            }}>
+              <Grid container spacing={3} alignItems="center">
+                <Grid item xs={12} sm={3} sx={{ textAlign: 'center' }}>
                   <Avatar
                     src={user.profileImage}
-                    sx={{ width: 100, height: 100, mb: 2 }}
+                    alt={user.name}
+                    sx={{ 
+                      width: 120, 
+                      height: 120, 
+                      border: '4px solid white',
+                      boxShadow: 2
+                    }}
                   />
-                  <Typography variant="h5" component="h1" gutterBottom>
+                </Grid>
+                <Grid item xs={12} sm={9}>
+                  <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
                     {user.name}
                   </Typography>
-                  <Typography color="text.secondary" gutterBottom>
+                  <Typography variant="subtitle1" sx={{ mb: 2 }}>
                     {user.email}
                   </Typography>
+<<<<<<< Updated upstream
                   <Button
                     variant="outlined"
                     startIcon={<EditIcon />}
@@ -112,80 +182,205 @@ const Profile = () => {
                   />
                 </Box>
               </CardContent>
+=======
+                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      startIcon={<EditIcon />}
+                      onClick={() => navigate('/edit-profile')}
+                      sx={{ 
+                        bgcolor: 'rgba(255, 255, 255, 0.2)',
+                        '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.3)' }
+                      }}
+                    >
+                      Edit Profile
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      startIcon={<AddIcon />}
+                      onClick={() => navigate('/add-certification')}
+                      sx={{ 
+                        bgcolor: 'rgba(255, 255, 255, 0.2)',
+                        '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.3)' }
+                      }}
+                    >
+                      Add Certification
+                    </Button>
+                  </Box>
+                </Grid>
+              </Grid>
+>>>>>>> Stashed changes
             </Card>
           </Grid>
-          <Grid item xs={12} md={8}>
-            <Card sx={{ mb: 3 }}>
+
+          {/* Skills Section */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ height: '100%', borderRadius: 2, boxShadow: 2 }}>
               <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Skills
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                    Skills
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    startIcon={<CodeIcon />}
+                    onClick={() => navigate('/add-skill')}
+                    size="small"
+                  >
+                    Add Skill
+                  </Button>
+                </Box>
                 {user.skills && user.skills.length > 0 ? (
                   <Grid container spacing={2}>
                     {user.skills.map((skill) => (
                       <Grid item xs={12} sm={6} key={skill._id}>
-                        <Card>
-                          <CardContent>
-                            <Typography variant="subtitle1">{skill.name}</Typography>
-                            <Typography color="text.secondary">
+                        <Card sx={{ 
+                          borderRadius: 1,
+                          transition: 'transform 0.2s',
+                          '&:hover': { transform: 'translateY(-4px)' }
+                        }}>
+                          <CardContent sx={{ p: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
+                                {skill.name}
+                              </Typography>
+                              <IconButton
+                                color="error"
+                                onClick={() => handleDeleteSkill(skill._id)}
+                                size="small"
+                                sx={{ 
+                                  '&:hover': { 
+                                    bgcolor: 'error.light',
+                                    color: 'white'
+                                  }
+                                }}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Box>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                               Level: {skill.level}
                             </Typography>
+<<<<<<< Updated upstream
+=======
+                            {skill.category && (
+                              <Typography variant="body2" color="text.secondary">
+                                Category: {skill.category}
+                              </Typography>
+                            )}
+>>>>>>> Stashed changes
                           </CardContent>
                         </Card>
                       </Grid>
                     ))}
                   </Grid>
                 ) : (
-                  <Typography color="text.secondary">
-                    No skills added yet
-                  </Typography>
+                  <Box sx={{ 
+                    textAlign: 'center', 
+                    py: 4,
+                    bgcolor: 'grey.50',
+                    borderRadius: 1
+                  }}>
+                    <CodeIcon sx={{ fontSize: 40, color: 'grey.400', mb: 2 }} />
+                    <Typography color="text.secondary">
+                      No skills added yet
+                    </Typography>
+                  </Box>
                 )}
-                <Button
-                  variant="contained"
-                  startIcon={<CodeIcon />}
-                  sx={{ mt: 2 }}
-                  onClick={() => navigate('/add-skill')}
-                >
-                  Add Skill
-                </Button>
               </CardContent>
             </Card>
-            <Card>
+          </Grid>
+
+          {/* Certifications Section */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ height: '100%', borderRadius: 2, boxShadow: 2 }}>
               <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Certifications
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                    Certifications
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    startIcon={<SchoolIcon />}
+                    onClick={() => navigate('/add-certification')}
+                    size="small"
+                  >
+                    Add Certification
+                  </Button>
+                </Box>
                 {user.certifications && user.certifications.length > 0 ? (
                   <Grid container spacing={2}>
                     {user.certifications.map((cert) => (
                       <Grid item xs={12} sm={6} key={cert._id}>
-                        <Card>
-                          <CardContent>
-                            <Typography variant="subtitle1">{cert.title}</Typography>
-                            <Typography color="text.secondary">
+                        <Card sx={{ 
+                          borderRadius: 1,
+                          transition: 'transform 0.2s',
+                          '&:hover': { transform: 'translateY(-4px)' }
+                        }}>
+                          <CardContent sx={{ p: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
+                                {cert.title}
+                              </Typography>
+                              <IconButton
+                                color="error"
+                                onClick={() => handleDeleteCertificate(cert._id)}
+                                size="small"
+                                sx={{ 
+                                  '&:hover': { 
+                                    bgcolor: 'error.light',
+                                    color: 'white'
+                                  }
+                                }}
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Box>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                               Issuer: {cert.issuer}
                             </Typography>
-                            <Typography color="text.secondary">
+                            <Typography variant="body2" color="text.secondary">
                               Issue Date: {new Date(cert.issueDate).toLocaleDateString()}
                             </Typography>
+<<<<<<< Updated upstream
+=======
+                            {cert.credentialId && (
+                              <Typography variant="body2" color="text.secondary">
+                                Credential ID: {cert.credentialId}
+                              </Typography>
+                            )}
+                            {cert.certificateFile && (
+                              <Button
+                                variant="outlined"
+                                color="primary"
+                                onClick={() => handleViewCertificate(cert.certificateFile)}
+                                startIcon={<VisibilityIcon />}
+                                sx={{ mt: 2, width: '100%' }}
+                              >
+                                View Certificate
+                              </Button>
+                            )}
+>>>>>>> Stashed changes
                           </CardContent>
                         </Card>
                       </Grid>
                     ))}
                   </Grid>
                 ) : (
-                  <Typography color="text.secondary">
-                    No certifications added yet
-                  </Typography>
+                  <Box sx={{ 
+                    textAlign: 'center', 
+                    py: 4,
+                    bgcolor: 'grey.50',
+                    borderRadius: 1
+                  }}>
+                    <SchoolIcon sx={{ fontSize: 40, color: 'grey.400', mb: 2 }} />
+                    <Typography color="text.secondary">
+                      No certifications added yet
+                    </Typography>
+                  </Box>
                 )}
-                <Button
-                  variant="contained"
-                  startIcon={<SchoolIcon />}
-                  sx={{ mt: 2 }}
-                  onClick={() => navigate('/add-certification')}
-                >
-                  Add Certification
-                </Button>
               </CardContent>
             </Card>
           </Grid>

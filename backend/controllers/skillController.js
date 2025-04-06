@@ -1,6 +1,6 @@
 const Skill = require('../models/skillModel');
-const asyncHandler = require('express-async-handler');
 const User = require('../models/userModel');
+const asyncHandler = require('express-async-handler');
 
 // @desc    Get all skills
 // @route   GET /api/skills
@@ -30,17 +30,35 @@ const getSkill = asyncHandler(async (req, res) => {
   res.json(skill);
 });
 
-// @desc    Create skill
+// @desc    Add new skill
 // @route   POST /api/skills
 // @access  Private
-const createSkill = asyncHandler(async (req, res) => {
-  const { name, category, description, level } = req.body;
+const addSkill = asyncHandler(async (req, res) => {
+  const { name, level, category } = req.body;
 
-  if (!name || !category) {
-    res.status(400);
-    throw new Error('Please provide name and category');
+  // Normalize skill name
+  const normalizedName = name.toLowerCase().trim();
+
+  // Check if skill already exists
+  let skill = await Skill.findOne({ name: normalizedName });
+
+  if (skill) {
+    // If skill exists, add user to skill's users array if not present
+    if (!skill.users.includes(req.user._id)) {
+      skill.users.push(req.user._id);
+      await skill.save();
+    }
+  } else {
+    // Create new skill
+    skill = await Skill.create({
+      name: normalizedName,
+      level,
+      category,
+      users: [req.user._id]
+    });
   }
 
+<<<<<<< Updated upstream
   // Check if skill already exists
   let skill = await Skill.findOne({ name });
 
@@ -70,6 +88,15 @@ const createSkill = asyncHandler(async (req, res) => {
     }
   }
 
+=======
+  // Add skill to user's skills array if not present
+  const user = await User.findById(req.user._id);
+  if (!user.skills.includes(skill._id)) {
+    user.skills.push(skill._id);
+    await user.save();
+  }
+
+>>>>>>> Stashed changes
   res.status(201).json(skill);
 });
 
@@ -84,7 +111,7 @@ const updateSkill = asyncHandler(async (req, res) => {
     throw new Error('Skill not found');
   }
 
-  // Check if the skill belongs to the user
+  // Check if user owns the skill
   if (!skill.users.includes(req.user._id)) {
     res.status(401);
     throw new Error('Not authorized');
@@ -110,29 +137,23 @@ const deleteSkill = asyncHandler(async (req, res) => {
     throw new Error('Skill not found');
   }
 
-  // Check if the skill belongs to the user
+  // Check if user owns the skill
   if (!skill.users.includes(req.user._id)) {
     res.status(401);
     throw new Error('Not authorized');
   }
 
-  // Remove the skill from the user's skills array
+  // Remove skill from user's skills array
   const user = await User.findById(req.user._id);
-  if (user) {
-    user.skills = user.skills.filter(
-      skillId => skillId.toString() !== skill._id.toString()
-    );
-    await user.save();
-  }
+  user.skills = user.skills.filter(skillId => skillId.toString() !== req.params.id);
+  await user.save();
 
   // Remove user from skill's users array
-  skill.users = skill.users.filter(
-    userId => userId.toString() !== req.user._id.toString()
-  );
+  skill.users = skill.users.filter(userId => userId.toString() !== req.user._id.toString());
   
   // If no users left, delete the skill
   if (skill.users.length === 0) {
-    await skill.remove();
+    await skill.deleteOne();
   } else {
     await skill.save();
   }
@@ -143,7 +164,7 @@ const deleteSkill = asyncHandler(async (req, res) => {
 module.exports = {
   getSkills,
   getSkill,
-  createSkill,
+  addSkill,
   updateSkill,
   deleteSkill
 }; 

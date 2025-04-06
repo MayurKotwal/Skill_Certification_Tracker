@@ -3,8 +3,7 @@ const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
 const {
   getSkills,
-  getSkill,
-  createSkill,
+  addSkill,
   updateSkill,
   deleteSkill
 } = require('../controllers/skillController');
@@ -14,10 +13,9 @@ router.use(protect);
 
 router.route('/')
   .get(getSkills)
-  .post(createSkill);
+  .post(addSkill);
 
 router.route('/:id')
-  .get(getSkill)
   .put(updateSkill)
   .delete(deleteSkill);
 

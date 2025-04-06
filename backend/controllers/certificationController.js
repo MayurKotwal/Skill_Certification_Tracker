@@ -9,7 +9,11 @@ const fs = require('fs');
 const fs = require('fs').promises;
 const { analyzeCertificate, validateCertificateAuthenticity } = require('../utils/certificateAnalyzer');
 const { extractSkillsFromCertificate, addExtractedSkillsToUser } = require('../utils/skillExtractor');
+<<<<<<< Updated upstream
 const { testConnection } = require('../config/geminiConfig');
+>>>>>>> Stashed changes
+=======
+const Skill = require('../models/skillModel');
 >>>>>>> Stashed changes
 
 // Configure multer for file upload
@@ -81,15 +85,28 @@ const addCertification = asyncHandler(async (req, res) => {
   const { title, issuer, issueDate, expiryDate, credentialId, description } = req.body;
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   if (!title || !issuer || !issueDate) {
     res.status(400);
     throw new Error('Please provide title, issuer, and issue date');
 =======
+=======
+    // Get the user first and populate their skills and certifications
+    const user = await User.findById(req.user.id)
+      .populate('skills')
+      .populate('certifications');
+    
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+>>>>>>> Stashed changes
     let aiAnalysis = null;
     let authenticity = null;
     let extractedSkills = [];
     let certificateFile = null;
 
+<<<<<<< Updated upstream
     // If a certificate file is uploaded, process and save it
     if (req.file) {
       try {
@@ -129,6 +146,56 @@ const addCertification = asyncHandler(async (req, res) => {
     }
 
     // Create certification without waiting for AI analysis
+=======
+    // Parse confirmed skills from the frontend
+    let confirmedSkills = [];
+    if (req.body.confirmedSkills) {
+      try {
+        confirmedSkills = JSON.parse(req.body.confirmedSkills);
+        console.log('Received confirmed skills from frontend:', confirmedSkills);
+        
+        // Normalize skills
+        confirmedSkills = confirmedSkills.map(skill => ({
+          name: skill.name.toLowerCase().trim(),
+          level: skill.level || 'beginner',
+          category: skill.category || 'Programming Languages',
+          confidence: skill.confidence || 1.0
+        }));
+        
+        console.log('Normalized confirmed skills:', confirmedSkills);
+        extractedSkills = confirmedSkills;
+      } catch (error) {
+        console.error('Error parsing confirmed skills:', error);
+        console.error('Raw confirmedSkills data:', req.body.confirmedSkills);
+        return res.status(400).json({ message: 'Invalid skills data format' });
+      }
+    }
+
+    // If a certificate file is uploaded, analyze it
+    if (req.file) {
+      try {
+        const fileType = req.file.mimetype.includes('pdf') ? 'pdf' : 'image';
+        aiAnalysis = await analyzeCertificate(
+          req.file.buffer,
+          fileType,
+          { title, issuer, issueDate, credentialId }
+        );
+        authenticity = await validateCertificateAuthenticity(aiAnalysis);
+        console.log('Certificate authenticity score:', authenticity.authenticity_score);
+      } catch (error) {
+        console.error('AI Analysis Error:', error);
+        aiAnalysis = null;
+        authenticity = {
+          authenticity_score: 1,
+          confidence_level: "medium",
+          flags: [],
+          recommendations: []
+        };
+      }
+    }
+
+    // Create the certification
+>>>>>>> Stashed changes
     const certification = new Certification({
       user: req.user.id,
       title,
@@ -144,11 +211,15 @@ const addCertification = asyncHandler(async (req, res) => {
         suggestedSkills: aiAnalysis.suggested_skills,
         category: aiAnalysis.category,
         authenticity: authenticity
-      } : undefined
+      } : undefined,
+      skills: [] // Initialize empty skills array
     });
 
+    // Save the certification first to get its ID
     await certification.save();
+    console.log('Certification saved:', certification._id);
 
+<<<<<<< Updated upstream
     // Add certification to user's certifications array
     await User.findByIdAndUpdate(
       req.user.id,
@@ -198,6 +269,100 @@ const addCertification = asyncHandler(async (req, res) => {
     res.status(500).json({ 
       message: 'Error adding certification', 
       error: process.env.NODE_ENV === 'development' ? error.message : undefined 
+    });
+>>>>>>> Stashed changes
+=======
+    // Add certification to user's certifications
+    user.certifications.push(certification._id);
+
+    // Process each skill
+    const addedSkills = [];
+    if (extractedSkills && extractedSkills.length > 0) {
+      for (const skillData of extractedSkills) {
+        try {
+          // Find or create the skill (case-insensitive search)
+          let skill = await Skill.findOne({
+            name: { $regex: new RegExp(`^${skillData.name}$`, 'i') }
+          });
+
+          if (!skill) {
+            // Create new skill
+            skill = new Skill({
+              name: skillData.name.toLowerCase(),
+              category: skillData.category,
+              level: skillData.level,
+              users: [user._id],
+              certifications: [certification._id]
+            });
+          } else {
+            // Update existing skill relationships
+            if (!skill.users.includes(user._id)) {
+              skill.users.push(user._id);
+            }
+            if (!skill.certifications.includes(certification._id)) {
+              skill.certifications.push(certification._id);
+            }
+          }
+          
+          // Save the skill
+          await skill.save();
+          console.log('Skill saved:', skill._id);
+
+          // Add skill to certification's skills array if not already present
+          if (!certification.skills.includes(skill._id)) {
+            certification.skills.push(skill._id);
+          }
+
+          // Add skill to user's skills array if not already present
+          if (!user.skills.some(s => s._id.toString() === skill._id.toString())) {
+            user.skills.push(skill._id);
+          }
+
+          addedSkills.push(skill);
+        } catch (error) {
+          console.error(`Error processing skill ${skillData.name}:`, error);
+          // Continue with other skills even if one fails
+        }
+      }
+    }
+
+    // Save the updated certification with skills
+    await certification.save();
+    console.log('Certification updated with skills');
+
+    // Save the user with updated skills and certifications
+    await user.save();
+    console.log('User updated with new skills and certification');
+
+    // Save the file to disk if it exists
+    if (req.file) {
+      const uploadDir = path.join(__dirname, '../uploads');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      
+      const filePath = path.join(uploadDir, certification.certificateFile);
+      fs.writeFileSync(filePath, req.file.buffer);
+      console.log('Certificate file saved to disk');
+    }
+
+    // Return the response with populated data
+    const populatedCertification = await Certification.findById(certification._id)
+      .populate('skills')
+      .populate('user', 'name email');
+
+    res.status(201).json({
+      message: 'Certification added successfully',
+      certification: populatedCertification,
+      addedSkills: addedSkills,
+      authenticity: authenticity
+    });
+
+  } catch (error) {
+    console.error('Error in addCertification:', error);
+    res.status(500).json({
+      message: 'Error adding certification',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
 >>>>>>> Stashed changes
   }
@@ -261,30 +426,41 @@ const deleteCertification = asyncHandler(async (req, res) => {
     throw new Error('Certification not found');
   }
 
-  // Check if the certification belongs to the user
+  // Check if user owns the certification
   if (certification.user.toString() !== req.user._id.toString()) {
     res.status(401);
     throw new Error('Not authorized');
   }
 
-  // Delete the certification file if it exists
+  // Delete the certificate file if it exists
   if (certification.certificateFile) {
+<<<<<<< Updated upstream
     const filePath = path.join(__dirname, '../uploads', certification.certificateFile);
     if (fs.access(filePath)) {
       await fs.unlink(filePath);
+=======
+    const filePath = path.join(__dirname, '..', 'uploads', certification.certificateFile);
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log('Deleted certificate file:', filePath);
+      }
+    } catch (error) {
+      console.error('Error deleting certificate file:', error);
+>>>>>>> Stashed changes
     }
   }
 
-  // Remove the certification from the user's certifications array
+  // Remove certification from user's certifications array
   const user = await User.findById(req.user._id);
-  if (user) {
-    user.certifications = user.certifications.filter(
-      cert => cert.toString() !== certification._id.toString()
-    );
-    await user.save();
-  }
+  user.certifications = user.certifications.filter(
+    certId => certId.toString() !== certification._id.toString()
+  );
+  await user.save();
 
-  await certification.remove();
+  // Delete the certification
+  await certification.deleteOne();
+
   res.json({ message: 'Certification removed' });
 });
 
@@ -296,7 +472,6 @@ const deleteCertification = asyncHandler(async (req, res) => {
 const analyzeCertificationFile = asyncHandler(async (req, res) => {
   try {
     console.log('Starting certificate analysis...');
-    console.log('Request headers:', req.headers);
     
     // Check if file was uploaded
     if (!req.file) {
@@ -313,6 +488,7 @@ const analyzeCertificationFile = asyncHandler(async (req, res) => {
       bufferLength: req.file.buffer ? req.file.buffer.length : 0
     });
 
+<<<<<<< Updated upstream
     // Get user input from request body
     const { title, issuer, issueDate, credentialId } = req.body;
     console.log('User input:', { title, issuer, issueDate, credentialId });
@@ -332,53 +508,59 @@ const analyzeCertificationFile = asyncHandler(async (req, res) => {
     // Determine file type
     const fileType = req.file.mimetype.includes('pdf') ? 'pdf' : 'image';
     console.log('File type determined:', fileType);
-
-    try {
-      // Analyze certificate
-      console.log('Starting certificate analysis...');
-      const aiAnalysis = await analyzeCertificate(
-        req.file.buffer,
-        fileType,
-        { title, issuer, issueDate, credentialId }
-      );
-      console.log('AI Analysis completed:', JSON.stringify(aiAnalysis, null, 2));
-
-      // Validate authenticity
-      console.log('Starting authenticity validation...');
-      const authenticity = await validateCertificateAuthenticity(aiAnalysis);
-      console.log('Authenticity validation completed:', JSON.stringify(authenticity, null, 2));
-
-      // Extract skills
-      console.log('Starting skill extraction...');
-      const extractedSkills = await extractSkillsFromCertificate({
-        title: title || aiAnalysis.extracted_info.title,
-        issuer: issuer || aiAnalysis.extracted_info.issuer,
-        description: req.body.description,
-        aiAnalysis
-      });
-      console.log('Skills extracted:', JSON.stringify(extractedSkills, null, 2));
-
-      res.json({
-        analysis: aiAnalysis,
-        authenticity,
-        extractedSkills,
-        message: 'Certificate analyzed successfully'
-      });
-    } catch (analysisError) {
-      console.error('Error during analysis process:', analysisError);
-      console.error('Analysis error stack:', analysisError.stack);
-      return res.status(500).json({ 
-        message: 'Error analyzing certificate',
-        error: analysisError.message,
-        stack: process.env.NODE_ENV === 'development' ? analysisError.stack : undefined
+=======
+    // Validate file type
+    if (!req.file.mimetype.startsWith('image/') && req.file.mimetype !== 'application/pdf') {
+      console.error('Invalid file type:', req.file.mimetype);
+      return res.status(400).json({ 
+        message: 'Invalid file type. Please upload a PDF or image file (JPEG, PNG)' 
       });
     }
+
+    // Validate file size
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (req.file.size > maxSize) {
+      console.error('File too large:', req.file.size);
+      return res.status(400).json({ 
+        message: `File size (${(req.file.size / 1024 / 1024).toFixed(2)}MB) exceeds the maximum limit of 5MB` 
+      });
+    }
+
+    // Get file type for analysis
+    const fileType = req.file.mimetype === 'application/pdf' ? 'pdf' : 'image';
+
+    // Extract user input from request body
+    const userInput = {
+      title: req.body.title || '',
+      issuer: req.body.issuer || '',
+      issueDate: req.body.issueDate || '',
+      credentialId: req.body.credentialId || ''
+    };
+>>>>>>> Stashed changes
+
+    // Analyze the certificate
+    const analysis = await analyzeCertificate(req.file.buffer, fileType, userInput);
+    console.log('Certificate analysis completed');
+
+    // Validate authenticity
+    const authenticity = await validateCertificateAuthenticity(analysis);
+    console.log('Authenticity validation completed');
+
+    // Extract skills
+    const extractedSkills = await extractSkillsFromCertificate(analysis);
+    console.log('Skills extracted:', extractedSkills);
+
+    // Send response
+    res.json({
+      analysis,
+      authenticity,
+      extractedSkills
+    });
+
   } catch (error) {
     console.error('Error in analyzeCertificationFile:', error);
-    console.error('Stack trace:', error.stack);
     res.status(500).json({ 
-      message: 'Error analyzing certificate',
-      error: error.message,
+      message: error.message || 'Error analyzing certificate',
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }

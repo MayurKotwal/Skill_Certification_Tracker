@@ -9,6 +9,7 @@ const registerUser = asyncHandler(async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
+<<<<<<< Updated upstream
     if (!name || !email || !password) {
       res.status(400);
       throw new Error('Please provide all required fields');
@@ -45,6 +46,42 @@ const registerUser = asyncHandler(async (req, res) => {
       message: error.message || 'Something went wrong during registration',
       error: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
+=======
+  // Validate input
+  if (!name || !email || !password) {
+    res.status(400);
+    throw new Error('Please provide all required fields');
+  }
+
+  // Check if user exists
+  const userExists = await User.findOne({ email });
+  if (userExists) {
+    res.status(400);
+    throw new Error('User already exists');
+  }
+
+  try {
+    // Create user
+    const user = await User.create({
+      name,
+      email,
+      password,
+      profileUrl: name.toLowerCase().replace(/\s+/g, '-')
+    });
+
+    if (user) {
+      res.status(201).json({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        token: generateToken(user._id),
+      });
+    }
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(400);
+    throw new Error(error.message || 'Error creating user');
+>>>>>>> Stashed changes
   }
 });
 
@@ -54,32 +91,43 @@ const registerUser = asyncHandler(async (req, res) => {
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
+  // Validate input
+  if (!email || !password) {
+    res.status(400);
+    throw new Error('Please provide email and password');
+  }
+
   console.log('Login attempt for email:', email);
 
-  // Find user by email and include password field
-  const user = await User.findOne({ email }).select('+password');
-  
-  console.log('User found:', user ? 'Yes' : 'No');
+  try {
+    // Find user by email and include password field
+    const user = await User.findOne({ email }).select('+password');
+    console.log('User found:', user ? 'Yes' : 'No');
 
-  if (user) {
-    // Compare passwords
-    const isMatch = await user.matchPassword(password);
-    console.log('Password match:', isMatch);
+    if (user) {
+      // Compare passwords
+      const isMatch = await user.matchPassword(password);
+      console.log('Password match:', isMatch);
 
-    if (isMatch) {
-      res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        token: generateToken(user._id),
-      });
+      if (isMatch) {
+        res.json({
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          token: generateToken(user._id),
+        });
+      } else {
+        res.status(401);
+        throw new Error('Invalid password');
+      }
     } else {
       res.status(401);
-      throw new Error('Invalid password');
+      throw new Error('User not found');
     }
-  } else {
+  } catch (error) {
+    console.error('Login error:', error);
     res.status(401);
-    throw new Error('User not found');
+    throw new Error(error.message || 'Error during login');
   }
 });
 
