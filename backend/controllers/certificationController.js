@@ -181,7 +181,17 @@ const addCertification = asyncHandler(async (req, res) => {
           { title, issuer, issueDate, credentialId }
         );
         authenticity = await validateCertificateAuthenticity(aiAnalysis);
+<<<<<<< Updated upstream
         console.log('Certificate authenticity score:', authenticity.authenticity_score);
+=======
+
+        // If there are major discrepancies, flag them
+        if (authenticity.authenticity_score < 0.5) {
+          console.log('Warning: Low certificate authenticity score:', authenticity.authenticity_score);
+          if (!authenticity.flags) authenticity.flags = [];
+          authenticity.flags.push('Low authentication score, but you can still proceed');
+        }
+>>>>>>> Stashed changes
       } catch (error) {
         console.error('AI Analysis Error:', error);
         aiAnalysis = null;
@@ -465,12 +475,17 @@ const deleteCertification = asyncHandler(async (req, res) => {
 });
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
 // @desc    Analyze certificate file
+=======
+// @desc    Analyze a certificate
+>>>>>>> Stashed changes
 // @route   POST /api/certifications/analyze
 // @access  Private
-const analyzeCertificationFile = asyncHandler(async (req, res) => {
+const analyzeCertificationHandler = asyncHandler(async (req, res) => {
   try {
+<<<<<<< Updated upstream
     console.log('Starting certificate analysis...');
     
     // Check if file was uploaded
@@ -562,7 +577,92 @@ const analyzeCertificationFile = asyncHandler(async (req, res) => {
     res.status(500).json({ 
       message: error.message || 'Error analyzing certificate',
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+=======
+    const { title, issuer, issueDate, credentialId } = req.body;
+    
+    // Validate required fields
+    if (!title || !issuer || !issueDate) {
+      return res.status(400).json({ message: 'Title, issuer, and issue date are required' });
+    }
+
+    let aiAnalysis = null;
+    let authenticity = null;
+    let extractedSkills = [];
+
+    // If a certificate file is uploaded, analyze it
+    if (req.file) {
+      try {
+        // Determine file type
+        const fileType = req.file.mimetype.includes('pdf') ? 'pdf' : 'image';
+        
+        // Analyze certificate
+        aiAnalysis = await analyzeCertificate(
+          req.file.buffer,
+          fileType,
+          { title, issuer, issueDate, credentialId }
+        );
+
+        // Validate authenticity
+        authenticity = await validateCertificateAuthenticity(aiAnalysis);
+        
+        // If there are major discrepancies, flag them but don't fail
+        if (authenticity.authenticity_score < 0.5) {
+          console.log('Warning: Low certificate authenticity score:', authenticity.authenticity_score);
+          if (!authenticity.flags) authenticity.flags = [];
+          authenticity.flags.push('Low authentication score, but you can still proceed');
+        }
+      } catch (error) {
+        console.error('AI Analysis Error:', error);
+      }
+    } else {
+      // No file uploaded, create a basic analysis and a default authenticity score
+      console.log('No certificate file uploaded, using default values');
+      
+      aiAnalysis = {
+        extracted_info: {
+          title: title || "",
+          issuer: issuer || "",
+          issue_date: issueDate || "",
+          credential_id: credentialId || ""
+        },
+        validation: {
+          matches: [],
+          discrepancies: []
+        },
+        suggested_skills: [],
+        category: ""
+      };
+      
+      authenticity = {
+        authenticity_score: 0.1, // Low default score
+        confidence_level: "low",
+        flags: ["Manual entry without certificate file"],
+        recommendations: ["Consider uploading a certificate file for verification"]
+      };
+    }
+
+    // Extract skills from certificate information
+    try {
+      extractedSkills = await extractSkillsFromCertificate({
+        title,
+        issuer,
+        description: req.body.description || '',
+        aiAnalysis
+      });
+    } catch (error) {
+      console.error('Skill Extraction Error:', error);
+      extractedSkills = [];
+    }
+
+    res.json({
+      analysis: aiAnalysis,
+      extractedSkills,
+      authenticity
+>>>>>>> Stashed changes
     });
+  } catch (error) {
+    console.error('Error analyzing certificate:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -573,5 +673,9 @@ module.exports = {
   addCertification,
   updateCertification,
   deleteCertification,
+<<<<<<< Updated upstream
+=======
+  analyzeCertificationHandler,
+>>>>>>> Stashed changes
   upload
 }; 

@@ -13,15 +13,26 @@ import {
   FormControlLabel,
   CircularProgress,
   Alert,
+<<<<<<< Updated upstream
   IconButton,
+=======
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+>>>>>>> Stashed changes
 } from '@mui/material';
 import {
   Edit as EditIcon,
   School as SchoolIcon,
   Code as CodeIcon,
+<<<<<<< Updated upstream
   Visibility as VisibilityIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
+=======
+  Visibility as ViewIcon,
+>>>>>>> Stashed changes
 } from '@mui/icons-material';
 import api from '../utils/axiosConfig';
 
@@ -31,6 +42,8 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [publicProfile, setPublicProfile] = useState(false);
+  const [selectedCert, setSelectedCert] = useState(null);
+  const [openDialog, setOpenDialog] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -57,6 +70,7 @@ const Profile = () => {
     }
   };
 
+<<<<<<< Updated upstream
   const handleViewCertificate = (certificateFile) => {
     if (certificateFile) {
       const certificateUrl = `http://localhost:3001/uploads/${certificateFile}`;
@@ -105,6 +119,16 @@ const Profile = () => {
       console.error('Error deleting skill:', error);
       setError('Failed to delete skill');
     }
+=======
+  const handleViewCert = (cert) => {
+    setSelectedCert(cert);
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setSelectedCert(null);
+>>>>>>> Stashed changes
   };
 
   if (loading) {
@@ -351,6 +375,7 @@ const Profile = () => {
                                 Credential ID: {cert.credentialId}
                               </Typography>
                             )}
+<<<<<<< Updated upstream
                             {cert.certificateFile && (
                               <Button
                                 variant="outlined"
@@ -362,6 +387,16 @@ const Profile = () => {
                                 View Certificate
                               </Button>
                             )}
+>>>>>>> Stashed changes
+=======
+                            <Button
+                              variant="outlined"
+                              startIcon={<ViewIcon />}
+                              onClick={() => handleViewCert(cert)}
+                              sx={{ mt: 1 }}
+                            >
+                              View Details
+                            </Button>
 >>>>>>> Stashed changes
                           </CardContent>
                         </Card>
@@ -386,6 +421,59 @@ const Profile = () => {
           </Grid>
         </Grid>
       </Box>
+
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+        <DialogTitle>Certificate Details</DialogTitle>
+        <DialogContent>
+          {selectedCert && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                {selectedCert.title}
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                <strong>Issuer:</strong> {selectedCert.issuer}
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                <strong>Issue Date:</strong> {new Date(selectedCert.issueDate).toLocaleDateString()}
+              </Typography>
+              {selectedCert.credentialId && (
+                <Typography variant="body1" gutterBottom>
+                  <strong>Credential ID:</strong> {selectedCert.credentialId}
+                </Typography>
+              )}
+              {selectedCert.credentialUrl && (
+                <Typography variant="body1" gutterBottom>
+                  <strong>Credential URL:</strong> {selectedCert.credentialUrl}
+                </Typography>
+              )}
+              {selectedCert.description && (
+                <Typography variant="body1" gutterBottom>
+                  <strong>Description:</strong> {selectedCert.description}
+                </Typography>
+              )}
+              {selectedCert.certificateFile && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body1" gutterBottom>
+                    <strong>Certificate File:</strong>
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    component="a"
+                    href={`http://localhost:3001/api/certifications/file/${selectedCert.certificateFile}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View Certificate
+                  </Button>
+                </Box>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

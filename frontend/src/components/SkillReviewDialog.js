@@ -191,12 +191,19 @@ const SkillReviewDialog = ({
               severity="info"
               sx={{ mb: 1 }}
             >
+<<<<<<< Updated upstream
               Certificate Analysis Results
               {authenticity.flags?.length > 0 && (
                 <Typography variant="body2" sx={{ mt: 1 }}>
                   Note: Some information couldn't be automatically verified. You can still proceed with adding your certification.
                 </Typography>
               )}
+=======
+              Certificate Authenticity Score: {(authenticity.authenticity_score * 100).toFixed(1)}%
+              <Typography variant="caption" component="div">
+                Note: Low scores won't prevent you from adding your certification. You can continue without uploading a certificate file.
+              </Typography>
+>>>>>>> Stashed changes
             </Alert>
           </Box>
         )}

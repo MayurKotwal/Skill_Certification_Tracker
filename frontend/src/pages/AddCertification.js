@@ -184,12 +184,16 @@ const AddCertification = () => {
         return;
       }
 
+<<<<<<< Updated upstream
       // Validate required fields
       if (!formData.title || !formData.issuer || !formData.issueDate) {
         setError('Please fill in all required fields');
         return;
       }
 
+=======
+      // Create formData
+>>>>>>> Stashed changes
       const formDataToSend = new FormData();
       
       // Add form fields
@@ -199,6 +203,7 @@ const AddCertification = () => {
         }
       });
       
+<<<<<<< Updated upstream
       // Add file if exists
       if (file) {
         formDataToSend.append('certificateFile', file);
@@ -220,6 +225,35 @@ const AddCertification = () => {
       } else {
         console.log('No skills to send');
         formDataToSend.append('confirmedSkills', JSON.stringify([]));
+=======
+      // Add file if it exists
+      if (file) {
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+        if (!validTypes.includes(file.type)) {
+          setError(`Invalid file type: ${file.type}. Please upload a PDF or image file (JPEG, PNG)`);
+          setLoading(false);
+          return;
+        }
+
+        // Validate file size
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (file.size > maxSize) {
+          setError(`File size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds the maximum limit of 5MB`);
+          setLoading(false);
+          return;
+        }
+        
+        formDataToSend.append('certificateFile', file);
+        
+        console.log('Uploading file:', {
+          name: file.name,
+          type: file.type,
+          size: file.size
+        });
+      } else {
+        console.log('No file attached, proceeding with manual certification entry');
+>>>>>>> Stashed changes
       }
 
       console.log('Sending certification data to server...');
@@ -396,9 +430,14 @@ const AddCertification = () => {
                     Selected file: {file.name}
                   </Typography>
                 ) : (
-                  <Typography>
-                    Drag and drop a file here, or click to select a file
-                  </Typography>
+                  <>
+                    <Typography>
+                      Drag and drop a file here, or click to select a file
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                      Note: File upload is optional. You can add a certification without uploading a file.
+                    </Typography>
+                  </>
                 )}
 =======
                 <input {...getInputProps()} disabled={loading} />
