@@ -20,6 +20,31 @@ const searchProfiles = asyncHandler(async (req, res) => {
   res.json(profiles);
 });
 
+// @desc    Get all public profiles
+// @route   GET /api/profiles
+// @access  Public
+const getAllProfiles = asyncHandler(async (req, res) => {
+  try {
+    // First try to get all profiles regardless of publicProfile setting
+    const allProfiles = await User.find({})
+      .select('name email skills certifications publicProfile')
+      .limit(50);
+    
+    console.log(`Found ${allProfiles.length} total profiles`);
+    
+    // Log the profiles for debugging
+    allProfiles.forEach((profile, index) => {
+      console.log(`Profile ${index + 1}: ${profile.name}, Public: ${profile.publicProfile}, Skills: ${profile.skills.length}, Certs: ${profile.certifications.length}`);
+    });
+    
+    // Return all profiles for now, we can filter later once we verify data
+    res.json(allProfiles);
+  } catch (error) {
+    console.error('Error in getAllProfiles:', error);
+    res.status(500).json({ message: 'Error retrieving profiles', error: error.message });
+  }
+});
+
 // @desc    Compare two user profiles
 // @route   GET /api/profiles/compare/:userId1/:userId2
 // @access  Private
@@ -229,5 +254,6 @@ const generateCareerPaths = (commonSkills, commonCerts) => {
 
 module.exports = {
   searchProfiles,
-  compareProfiles
+  compareProfiles,
+  getAllProfiles
 }; 

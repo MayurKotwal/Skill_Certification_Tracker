@@ -8,6 +8,8 @@ const userRoutes = require('./routes/userRoutes');
 const certificationRoutes = require('./routes/certificationRoutes');
 const skillRoutes = require('./routes/skillRoutes');
 const profileComparisonRoutes = require('./routes/profileComparisonRoutes');
+const profileSearchRoutes = require('./routes/profileSearchRoutes');
+const resumeRoutes = require('./routes/resumeRoutes');
 const fs = require('fs');
 
 // Load environment variables from the correct path
@@ -80,6 +82,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/certifications', certificationRoutes);
 app.use('/api/skills', skillRoutes);
 app.use('/api/profiles', profileComparisonRoutes);
+app.use('/api/search', profileSearchRoutes);
+app.use('/api/resume', resumeRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

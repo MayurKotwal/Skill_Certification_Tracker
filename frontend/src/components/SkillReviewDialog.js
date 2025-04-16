@@ -188,7 +188,11 @@ const SkillReviewDialog = ({
         {authenticity && (
           <Box sx={{ mb: 2 }}>
             <Alert 
+<<<<<<< Updated upstream
               severity="info"
+=======
+              severity={authenticity.authenticity_score > 0.05 ? "success" : "warning"}
+>>>>>>> Stashed changes
               sx={{ mb: 1 }}
             >
 <<<<<<< Updated upstream

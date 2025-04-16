@@ -16,6 +16,9 @@ const { testConnection } = require('../config/geminiConfig');
 const Skill = require('../models/skillModel');
 >>>>>>> Stashed changes
 
+// Load environment variables
+const CERTIFICATE_AUTHENTICITY_THRESHOLD = parseFloat(process.env.CERTIFICATE_AUTHENTICITY_THRESHOLD || '0.5');
+
 // Configure multer for file upload
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -171,6 +174,16 @@ const addCertification = asyncHandler(async (req, res) => {
       }
     }
 
+    // Check if confirmedSkills are provided from the frontend
+    if (req.body.confirmedSkills) {
+      try {
+        extractedSkills = JSON.parse(req.body.confirmedSkills);
+        console.log('Using confirmed skills from frontend:', extractedSkills);
+      } catch (error) {
+        console.error('Error parsing confirmedSkills:', error);
+      }
+    }
+
     // If a certificate file is uploaded, analyze it
     if (req.file) {
       try {
@@ -186,10 +199,19 @@ const addCertification = asyncHandler(async (req, res) => {
 =======
 
         // If there are major discrepancies, flag them
+<<<<<<< Updated upstream
         if (authenticity.authenticity_score < 0.5) {
           console.log('Warning: Low certificate authenticity score:', authenticity.authenticity_score);
           if (!authenticity.flags) authenticity.flags = [];
           authenticity.flags.push('Low authentication score, but you can still proceed');
+=======
+        if (authenticity.authenticity_score < CERTIFICATE_AUTHENTICITY_THRESHOLD) {
+          return res.status(400).json({
+            message: 'Certificate validation failed',
+            analysis: aiAnalysis,
+            authenticity: authenticity
+          });
+>>>>>>> Stashed changes
         }
 >>>>>>> Stashed changes
       } catch (error) {
@@ -204,7 +226,25 @@ const addCertification = asyncHandler(async (req, res) => {
       }
     }
 
+<<<<<<< Updated upstream
     // Create the certification
+>>>>>>> Stashed changes
+=======
+    // Extract skills from certificate information if not provided from frontend
+    if (extractedSkills.length === 0) {
+      try {
+        extractedSkills = await extractSkillsFromCertificate({
+          title,
+          issuer,
+          description,
+          aiAnalysis
+        });
+      } catch (error) {
+        console.error('Skill Extraction Error:', error);
+        // Continue with certification creation even if skill extraction fails
+      }
+    }
+
 >>>>>>> Stashed changes
     const certification = new Certification({
       user: req.user.id,
@@ -429,8 +469,10 @@ const updateCertification = asyncHandler(async (req, res) => {
 // @route   DELETE /api/certifications/:id
 // @access  Private
 const deleteCertification = asyncHandler(async (req, res) => {
-  const certification = await Certification.findById(req.params.id);
+  try {
+    const certification = await Certification.findById(req.params.id);
 
+<<<<<<< Updated upstream
   if (!certification) {
     res.status(404);
     throw new Error('Certification not found');
@@ -458,9 +500,16 @@ const deleteCertification = asyncHandler(async (req, res) => {
     } catch (error) {
       console.error('Error deleting certificate file:', error);
 >>>>>>> Stashed changes
+=======
+    if (!certification) {
+      return res.status(404).json({
+        success: false,
+        message: 'Certification not found'
+      });
+>>>>>>> Stashed changes
     }
-  }
 
+<<<<<<< Updated upstream
   // Remove certification from user's certifications array
   const user = await User.findById(req.user._id);
   user.certifications = user.certifications.filter(
@@ -472,6 +521,55 @@ const deleteCertification = asyncHandler(async (req, res) => {
   await certification.deleteOne();
 
   res.json({ message: 'Certification removed' });
+=======
+    // Check if the certification belongs to the user
+    if (certification.user.toString() !== req.user._id.toString()) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authorized to delete this certification'
+      });
+    }
+
+    // Delete the certification file if it exists
+    if (certification.certificateFile) {
+      try {
+        const filePath = path.join(__dirname, '../uploads', certification.certificateFile);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log(`Deleted file: ${filePath}`);
+        }
+      } catch (fileError) {
+        console.error('Error deleting certificate file:', fileError);
+        // Continue with deletion even if file removal fails
+      }
+    }
+
+    // Remove the certification from the user's certifications array
+    const user = await User.findById(req.user._id);
+    if (user) {
+      user.certifications = user.certifications.filter(
+        cert => cert.toString() !== certification._id.toString()
+      );
+      await user.save();
+    }
+
+    // Use findByIdAndDelete instead of remove()
+    await Certification.findByIdAndDelete(req.params.id);
+    
+    return res.status(200).json({ 
+      success: true,
+      message: 'Certification successfully removed',
+      certificationId: req.params.id
+    });
+  } catch (error) {
+    console.error('Error in deleteCertification:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while deleting certification',
+      error: error.message
+    });
+  }
+>>>>>>> Stashed changes
 });
 
 <<<<<<< Updated upstream

@@ -130,13 +130,17 @@ const updateSkill = asyncHandler(async (req, res) => {
 // @route   DELETE /api/skills/:id
 // @access  Private
 const deleteSkill = asyncHandler(async (req, res) => {
-  const skill = await Skill.findById(req.params.id);
+  try {
+    const skill = await Skill.findById(req.params.id);
 
-  if (!skill) {
-    res.status(404);
-    throw new Error('Skill not found');
-  }
+    if (!skill) {
+      return res.status(404).json({
+        success: false,
+        message: 'Skill not found'
+      });
+    }
 
+<<<<<<< Updated upstream
   // Check if user owns the skill
   if (!skill.users.includes(req.user._id)) {
     res.status(401);
@@ -156,9 +160,50 @@ const deleteSkill = asyncHandler(async (req, res) => {
     await skill.deleteOne();
   } else {
     await skill.save();
-  }
+=======
+    // Check if the skill belongs to the user
+    if (!skill.users.includes(req.user._id)) {
+      return res.status(401).json({
+        success: false,
+        message: 'Not authorized to delete this skill'
+      });
+    }
 
-  res.json({ message: 'Skill removed' });
+    // Remove the skill from the user's skills array
+    const user = await User.findById(req.user._id);
+    if (user) {
+      user.skills = user.skills.filter(
+        skillId => skillId.toString() !== skill._id.toString()
+      );
+      await user.save();
+    }
+
+    // Remove user from skill's users array
+    skill.users = skill.users.filter(
+      userId => userId.toString() !== req.user._id.toString()
+    );
+    
+    // If no users left, delete the skill
+    if (skill.users.length === 0) {
+      await Skill.findByIdAndDelete(skill._id);
+    } else {
+      await skill.save();
+    }
+
+    return res.status(200).json({ 
+      success: true,
+      message: 'Skill successfully removed',
+      skillId: req.params.id
+    });
+  } catch (error) {
+    console.error('Error in deleteSkill:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while deleting skill',
+      error: error.message
+    });
+>>>>>>> Stashed changes
+  }
 });
 
 module.exports = {

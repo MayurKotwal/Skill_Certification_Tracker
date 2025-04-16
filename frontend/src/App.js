@@ -19,6 +19,7 @@ import AddCertification from './pages/AddCertification';
 import AddSkill from './pages/AddSkill';
 import SearchProfiles from './pages/SearchProfiles';
 import ProfileComparison from './pages/ProfileComparison';
+import ResumeGenerator from './pages/ResumeGenerator';
 
 // Create theme
 const theme = createTheme({
@@ -56,6 +57,7 @@ function App() {
             <Route path="/add-skill" element={<AddSkill />} />
             <Route path="/search-profiles" element={<SearchProfiles />} />
             <Route path="/compare-profiles/:profileIds" element={<ProfileComparison />} />
+            <Route path="/resume-generator" element={<ResumeGenerator />} />
           </Routes>
         </Container>
         <Footer />

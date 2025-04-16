@@ -29,6 +29,7 @@ import {
   ExitToApp,
   Search,
   CompareArrows,
+  Description,
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -149,6 +150,14 @@ const Navbar = () => {
             >
               Search Profiles
             </Button>
+            <Button
+              color="inherit"
+              component={RouterLink}
+              to="/resume-generator"
+              startIcon={<Description />}
+            >
+              Resume
+            </Button>
             <IconButton
               size="large"
               aria-label="account of current user"
@@ -180,6 +189,13 @@ const Navbar = () => {
                 onClick={handleClose}
               >
                 Profile
+              </MenuItem>
+              <MenuItem
+                component={RouterLink}
+                to="/resume-generator"
+                onClick={handleClose}
+              >
+                Resume Generator
               </MenuItem>
               <MenuItem onClick={handleLogout}>
                 <ExitToApp sx={{ mr: 2 }} />
